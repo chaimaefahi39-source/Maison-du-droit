@@ -1,0 +1,184 @@
+const LegalRequest = require('../models/request.model');
+
+/**
+ * @swagger
+ * /api/requests:
+ *   post:
+ *     summary: Create a new legal request
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, description]
+ *             properties:
+ *               title: { type: string }
+ *               description: { type: string }
+ *               category: { type: string, enum: [travail, logement, famille, commerce, penal, administratif, general] }
+ *     responses:
+ *       201: { description: Request created }
+ */
+const createRequest = async (req, res) => {
+  try {
+    const { title, description, category } = req.body;
+    const userId = req.user.id;
+
+    if (!title || !description) {
+      return res.status(400).json({
+        success: false,
+        message: "Le titre et la description sont obligatoires"
+      });
+    }
+
+    const request = await LegalRequest.create({
+      userId,
+      title,
+      description,
+      category: category || 'general',
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Demande créée avec succès",
+      request,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Erreur lors de la création de la demande",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/requests:
+ *   get:
+ *     summary: Get all legal requests for the current user
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: List of requests }
+ */
+const getUserRequests = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { status } = req.query;
+
+    const where = { userId };
+    if (status) where.status = status;
+
+    const requests = await LegalRequest.findAll({
+      where,
+      order: [['createdAt', 'DESC']],
+    });
+
+    return res.status(200).json({
+      success: true,
+      requests,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des demandes",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/requests/{id}:
+ *   get:
+ *     summary: Get a specific legal request by ID
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Request details }
+ */
+const getRequestById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const request = await LegalRequest.findOne({
+      where: { id, userId },
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Demande non trouvée"
+      });
+    }
+
+    return res.status(200).json({ success: true, request });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/requests/{id}:
+ *   put:
+ *     summary: Update a legal request
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Request updated }
+ */
+const updateRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { title, description, category, status } = req.body;
+
+    const request = await LegalRequest.findOne({ where: { id, userId } });
+    if (!request) {
+      return res.status(404).json({ success: false, message: "Demande non trouvée" });
+    }
+
+    if (title !== undefined) request.title = title;
+    if (description !== undefined) request.description = description;
+    if (category !== undefined) request.category = category;
+    if (status !== undefined) request.status = status;
+
+    await request.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Demande mise à jour avec succès",
+      request,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { createRequest, getUserRequests, getRequestById, updateRequest };
