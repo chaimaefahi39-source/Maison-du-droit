@@ -1,8 +1,8 @@
-# Mon Droit — AI Legal Rights Assistant
+#Maison du Droit — AI Legal Rights Assistant
 ## Project Specification Document
 
 **Document Type:** Full-Stack Mobile Application — Project Specification
-**Prepared by:** [Student Name]
+**Prepared by:** [chaimaa fahi]
 **Role:** Software Engineer / Full-Stack Developer
 **Document Version:** 1.0
 **Date:** August 2026
@@ -16,7 +16,7 @@
 |---|---|
 | Document Title | Mon Droit — AI Legal Rights Assistant: Project Specification |
 | Version | 1.0 |
-| Author | [Student Name] |
+| Author | [chaimaa fahi] |
 | Classification | Project Deliverable |
 | Target Platforms | iOS and Android (React Native / Expo) |
 | Primary Domain | LegalTech, Conversational AI, RAG |
