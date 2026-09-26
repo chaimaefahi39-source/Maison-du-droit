@@ -1,7 +1,36 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-const BASE_URL = 'http://192.168.1.123:5001/api';
+const getBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      return `http://${window.location.hostname}:5001/api`;
+    }
+    return 'http://localhost:5001/api';
+  }
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:5001/api';
+  }
+  return 'http://localhost:5001/api';
+};
+
+export const BASE_URL = getBaseUrl();
+
+export const getStoredToken = async (): Promise<string | null> => {
+  try {
+    if (Platform.OS === 'web') {
+      return await AsyncStorage.getItem('mdd_token');
+    }
+    return await SecureStore.getItemAsync('mdd_token');
+  } catch (e) {
+    return null;
+  }
+};
 
 // ─── Axios Instance ────────────────────────────────────────────
 const api = axios.create({
@@ -16,12 +45,12 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await SecureStore.getItemAsync('mdd_token');
+      const token = await getStoredToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (e) {
-      // SecureStore may not be available on web
+      // Storage may not be available
     }
     return config;
   },
@@ -169,7 +198,7 @@ export function streamChat(
 
   (async () => {
     try {
-      const token = await SecureStore.getItemAsync('mdd_token');
+      const token = await getStoredToken();
 
       const response = await fetch(`${BASE_URL}/ai/chat`, {
         method: 'POST',

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -13,7 +13,7 @@ const CARD_WIDTH = (width - 56) / 2;
 const QUICK_ACTIONS = [
   { icon: 'message-circle' as const, label: 'Poser une question', route: '/(app)/chat', color: colors.primary },
   { icon: 'file-plus' as const, label: 'Nouvelle demande', route: '/(app)/requests', color: colors.accent },
-  { icon: 'book-open' as const, label: 'Ressources', route: '/(app)/resources', color: colors.info },
+  { icon: 'book-open' as const, label: 'Ressources', route: '/(app)/resources', color: colors.primary },
   { icon: 'shield' as const, label: 'Mes droits', route: '/(app)/resources', color: colors.success },
 ];
 
@@ -33,7 +33,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadRequests();
-  }, []);
+  }, [loadRequests]);
 
   const pendingCount = requests.filter(r => r.status === 'pending').length;
   const resolvedCount = requests.filter(r => r.status === 'resolved').length;
@@ -86,18 +86,30 @@ export default function HomeScreen() {
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => router.push('/(app)/requests' as any)}
+            activeOpacity={0.7}
+          >
             <Text style={styles.statNumber}>{requests.length}</Text>
             <Text style={styles.statLabel}>Total demandes</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.warningBg }]}>
-            <Text style={[styles.statNumber, { color: colors.warning }]}>{pendingCount}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.statCard, { backgroundColor: colors.surfaceAlt }]}
+            onPress={() => router.push('/(app)/requests' as any)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.statNumber, { color: colors.accent }]}>{pendingCount}</Text>
             <Text style={styles.statLabel}>En attente</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.successBg }]}>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.statCard, { backgroundColor: colors.surfaceAlt }]}
+            onPress={() => router.push('/(app)/requests' as any)}
+            activeOpacity={0.7}
+          >
             <Text style={[styles.statNumber, { color: colors.success }]}>{resolvedCount}</Text>
             <Text style={styles.statLabel}>Résolues</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
@@ -133,7 +145,12 @@ export default function HomeScreen() {
           contentContainerStyle={styles.categoriesScroll}
         >
           {CATEGORIES.map((cat, index) => (
-            <TouchableOpacity key={index} style={styles.categoryChip} activeOpacity={0.7}>
+            <TouchableOpacity
+              key={index}
+              style={styles.categoryChip}
+              activeOpacity={0.7}
+              onPress={() => router.push({ pathname: '/(app)/resources', params: { category: cat.value } } as any)}
+            >
               <Text style={styles.categoryEmoji}>{cat.icon}</Text>
               <Text style={styles.categoryLabel}>{cat.label}</Text>
             </TouchableOpacity>
@@ -150,7 +167,12 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
             {requests.slice(0, 3).map((req) => (
-              <View key={req.id} style={styles.requestCard}>
+              <TouchableOpacity
+                key={req.id}
+                style={styles.requestCard}
+                activeOpacity={0.8}
+                onPress={() => router.push('/(app)/requests' as any)}
+              >
                 <View style={styles.requestHeader}>
                   <Text style={styles.requestTitle} numberOfLines={1}>{req.title}</Text>
                   <View style={[styles.statusBadge, { backgroundColor: getStatusColor(req.status) + '20' }]}>
@@ -160,7 +182,7 @@ export default function HomeScreen() {
                   </View>
                 </View>
                 <Text style={styles.requestCategory}>{req.category} • {new Date(req.createdAt).toLocaleDateString('fr-FR')}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </>
         )}
@@ -173,10 +195,10 @@ export default function HomeScreen() {
 
 function getStatusColor(status: string) {
   switch (status) {
-    case 'pending': return colors.statusPending;
-    case 'processing': return colors.statusProcessing;
-    case 'resolved': return colors.statusResolved;
-    case 'closed': return colors.statusClosed;
+    case 'pending': return colors.accent;
+    case 'processing': return colors.primary;
+    case 'resolved': return colors.success;
+    case 'closed': return colors.textSecondary;
     default: return colors.textSecondary;
   }
 }
@@ -244,7 +266,7 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: CARD_WIDTH, backgroundColor: colors.surface, borderRadius: 16,
-    padding: 16, borderWidth: 1, borderColor: colors.borderLight,
+    padding: 16, borderWidth: 1, borderColor: colors.border,
   },
   actionIconBox: {
     width: 40, height: 40, borderRadius: 12,
@@ -261,7 +283,7 @@ const styles = StyleSheet.create({
   categoryLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
   requestCard: {
     marginHorizontal: 20, backgroundColor: colors.surface, borderRadius: 14,
-    padding: 16, marginBottom: 10, borderWidth: 1, borderColor: colors.borderLight,
+    padding: 16, marginBottom: 10, borderWidth: 1, borderColor: colors.border,
   },
   requestHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   requestTitle: { fontSize: 14, fontWeight: '600', color: colors.text, flex: 1, marginRight: 8 },

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { colors } from '../../theme/colors';
 import { useChatStore } from '../../store/useChatStore';
 
@@ -13,6 +14,8 @@ const SUGGESTIONS = [
 ];
 
 export default function ChatScreen() {
+  const params = useLocalSearchParams<{ initialMessage?: string }>();
+  const initialSentRef = useRef(false);
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const { messages, isStreaming, isLoading, sendMessage, loadHistory, clearHistory } = useChatStore();
@@ -20,6 +23,13 @@ export default function ChatScreen() {
   useEffect(() => {
     loadHistory();
   }, []);
+
+  useEffect(() => {
+    if (params.initialMessage && !initialSentRef.current && !isStreaming) {
+      initialSentRef.current = true;
+      sendMessage(params.initialMessage);
+    }
+  }, [params.initialMessage, isStreaming]);
 
   useEffect(() => {
     // Auto-scroll to bottom on new messages

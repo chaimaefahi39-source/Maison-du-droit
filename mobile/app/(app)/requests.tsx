@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { colors } from '../../theme/colors';
 import { useRequestStore } from '../../store/useRequestStore';
 
@@ -46,8 +47,10 @@ function getStatusIcon(status: string): any {
 }
 
 export default function RequestsScreen() {
+  const router = useRouter();
   const { requests, isLoading, loadRequests, createRequest } = useRequestStore();
   const [showModal, setShowModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('general');
@@ -78,8 +81,20 @@ export default function RequestsScreen() {
     }
   };
 
+  const handleAskAboutRequest = (req: any) => {
+    setSelectedRequest(null);
+    router.push({
+      pathname: '/(app)/chat',
+      params: { initialMessage: `J'ai besoin d'aide pour ma demande "${req.title}": ${req.description}` },
+    } as any);
+  };
+
   const renderRequest = ({ item }: { item: any }) => (
-    <View style={styles.requestCard}>
+    <TouchableOpacity
+      style={styles.requestCard}
+      activeOpacity={0.8}
+      onPress={() => setSelectedRequest(item)}
+    >
       <View style={styles.cardHeader}>
         <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '10' }]}>
           <Text style={[styles.categoryText, { color: colors.primary }]}>{item.category}</Text>
@@ -102,7 +117,7 @@ export default function RequestsScreen() {
           <Text style={styles.aiResponseLabel}>Réponse IA disponible</Text>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -220,6 +235,58 @@ export default function RequestsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Detail Modal */}
+      <Modal visible={!!selectedRequest} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {selectedRequest && (
+              <>
+                <View style={styles.modalHeader}>
+                  <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '10' }]}>
+                    <Text style={[styles.categoryText, { color: colors.primary }]}>{selectedRequest.category}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setSelectedRequest(null)}>
+                    <Feather name="x" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <Text style={styles.modalTitle}>{selectedRequest.title}</Text>
+                  <Text style={styles.requestDate}>
+                    Créé le {new Date(selectedRequest.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </Text>
+
+                  <Text style={[styles.inputLabel, { marginTop: 16 }]}>DESCRIPTION DU PROBLÈME</Text>
+                  <Text style={styles.requestDescText}>{selectedRequest.description}</Text>
+
+                  {selectedRequest.aiResponse ? (
+                    <View style={styles.aiResponseCard}>
+                      <View style={styles.aiResponseHeader}>
+                        <Feather name="cpu" size={16} color={colors.primary} />
+                        <Text style={styles.aiResponseTitle}>Réponse de l'Assistant Juridique</Text>
+                      </View>
+                      <Text style={styles.aiResponseText}>{selectedRequest.aiResponse}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.pendingCard}>
+                      <Feather name="clock" size={16} color={colors.warning} />
+                      <Text style={styles.pendingText}>Votre demande est en cours d'analyse par l'assistant juridique.</Text>
+                    </View>
+                  )}
+
+                  <TouchableOpacity
+                    style={[styles.submitButton, { marginTop: 20 }]}
+                    onPress={() => handleAskAboutRequest(selectedRequest)}
+                  >
+                    <Text style={styles.submitText}>Discuter de cette demande avec l'IA →</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -297,4 +364,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25, shadowRadius: 12, elevation: 6,
   },
   submitText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+
+  requestDescText: { fontSize: 14, color: colors.text, lineHeight: 21, marginBottom: 16 },
+  aiResponseCard: {
+    backgroundColor: colors.surfaceAlt, borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: colors.border, marginTop: 12,
+  },
+  aiResponseHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  aiResponseTitle: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  aiResponseText: { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
+  pendingCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.warningBg, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.warning + '40', marginTop: 12,
+  },
+  pendingText: { fontSize: 12, color: colors.warning, flex: 1, fontWeight: '500' },
 });
