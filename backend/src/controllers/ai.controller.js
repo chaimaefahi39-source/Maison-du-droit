@@ -39,9 +39,11 @@ const chat = async (req, res) => {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization',
     'X-Accel-Buffering': 'no',
   });
-
+  
   try {
     // ─── Save user message to DB ───────────────────────────────
     await ChatMessage.create({ userId, role: 'user', content: message });

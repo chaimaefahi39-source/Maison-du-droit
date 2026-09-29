@@ -1,134 +1,62 @@
-/**
- * Seed script for Maison du Droit
- * Seeds the legal_resources table with sample legal articles and generates embeddings.
- *
- * Usage: npm run seed
- */
-require('dotenv').config();
-const db = require('./models');
-const { generateEmbedding } = require('./services/openai.service');
-const sequelize = require('./config/database');
-
 const LEGAL_RESOURCES = [
   {
-    title: "Droit du travail - Contrat de travail",
+    title: "مدونة الشغل - الفصل التعسفي والتعويضات (المادة 41 و 53)",
     category: "travail",
-    content: `Le contrat de travail est un accord par lequel une personne (le salarié) s'engage à travailler pour le compte et sous la direction d'une autre personne (l'employeur) en échange d'une rémunération. Les principaux types de contrats sont : le CDI (Contrat à Durée Indéterminée), le CDD (Contrat à Durée Déterminée), et le contrat de travail temporaire. Le CDI est la forme normale du contrat de travail. Le CDD ne peut être conclu que pour l'exécution d'une tâche précise et temporaire. La période d'essai permet à l'employeur d'évaluer les compétences du salarié et au salarié d'apprécier si les fonctions lui conviennent.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/N19871"
+    content: `طبقا لمقتضيات القانون رقم 65.99 المتعلق بمدونة الشغل المغربية (الظهير الشريف 1.03.194)، يعتبر كل إنهاء لعقد الشغل دون خطأ جسيم فصلاً تعسفياً يستوجب التعويض. يستحق الأجير المفصول تعويضاً عن الإخطار (Préavis)، وتعويضاً عن الفصل يُحسب على أساس الأقدمية (المادة 53)، بالإضافة إلى تعويض عن الضرر يقدر بـ 1.5 شهر عن كل سنة عمل في حدود 36 شهراً كحد أقصى (المادة 41). يجب إيداع الشكاية لدى مفتش الشغل لإجراء الصلح، أو رفع دعوى أمام المحكمة الابتدائية خلال أجل 90 يوماً.`,
+    url: "https://adala.justice.gov.ma"
   },
   {
-    title: "Droit du travail - Licenciement",
+    title: "مدونة الشغل - مسطرة الاستماع وإثبات الخطأ الجسيم (المادة 62)",
     category: "travail",
-    content: `Le licenciement est la rupture du contrat de travail à l'initiative de l'employeur. Il peut être pour motif personnel (faute, insuffisance professionnelle) ou pour motif économique. L'employeur doit respecter une procédure stricte : convocation à un entretien préalable, notification du licenciement par lettre recommandée avec accusé de réception, et respect du préavis. Le salarié licencié a droit à une indemnité de licenciement s'il justifie d'au moins 8 mois d'ancienneté. En cas de licenciement abusif, le salarié peut saisir le conseil de prud'hommes.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/N19611"
+    content: `تنص المادة 62 من مدونة الشغل على أنه يجب قبل فصل الأجير إتاحة الفرصة له للدفاع عن نفسه بالاستماع إليه من طرف المشغل أو من ينوب عنه بحضور مندوب الأجراء داخل أجل لا يتعدى 8 أيام من تاريخ تبين الخطأ المنسوب إليه. يحرر محضر في الموضوع تسلم نسخة منه للأجير. إذا رفض أحد الطرفين إجراء أو إتمام المسطرة، يتم اللجوء إلى مفتش الشغل. خرق هذه المسطرة الشكلية يجعل الفصل تعسفياً حتى لو كان الخطأ ثابتاً.`,
+    url: "https://adala.justice.gov.ma"
   },
   {
-    title: "Droit du logement - Bail d'habitation",
-    category: "logement",
-    content: `Le bail d'habitation est le contrat par lequel un propriétaire (bailleur) met un logement à la disposition d'un locataire moyennant un loyer. La durée minimale du bail est de 3 ans pour un bailleur personne physique et 6 ans pour une personne morale. Le locataire dispose d'un droit au maintien dans les lieux. Le bailleur ne peut donner congé qu'à l'échéance du bail et pour des motifs précis : reprise pour habiter, vente du logement, ou motif légitime et sérieux. Le dépôt de garantie est limité à un mois de loyer hors charges. L'état des lieux d'entrée et de sortie est obligatoire.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/N349"
-  },
-  {
-    title: "Droit du logement - Expulsion locative",
-    category: "logement",
-    content: `L'expulsion d'un locataire ne peut intervenir que sur décision de justice. Le propriétaire doit d'abord faire constater les impayés de loyer, puis envoyer un commandement de payer par huissier. Si le locataire ne régularise pas sa situation, le propriétaire peut saisir le tribunal. La trêve hivernale (du 1er novembre au 31 mars) interdit toute expulsion. Le locataire en difficulté peut demander des délais de paiement au juge ou solliciter l'aide du Fonds de Solidarité pour le Logement (FSL). L'expulsion sans décision de justice est un délit.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/F31272"
-  },
-  {
-    title: "Droit de la famille - Divorce",
-    category: "famille",
-    content: `Le divorce peut être prononcé selon quatre procédures : le divorce par consentement mutuel (y compris sans juge depuis 2017), le divorce pour acceptation du principe de la rupture, le divorce pour altération définitive du lien conjugal (après 1 an de séparation), et le divorce pour faute. En cas de divorce par consentement mutuel sans juge, les époux doivent être assistés chacun d'un avocat. La convention de divorce est déposée chez un notaire. Le divorce règle les questions de la prestation compensatoire, du partage des biens, de la garde des enfants et de la pension alimentaire.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/N159"
-  },
-  {
-    title: "Droit de la famille - Garde des enfants",
-    category: "famille",
-    content: `En cas de séparation des parents, la résidence des enfants peut être fixée au domicile de l'un des parents ou en alternance. Le juge aux affaires familiales statue en fonction de l'intérêt supérieur de l'enfant. Les critères pris en compte incluent : les pratiques antérieures des parents, les sentiments exprimés par l'enfant, l'aptitude de chaque parent à assumer ses devoirs, et les résultats des enquêtes sociales. Le parent qui n'a pas la résidence dispose d'un droit de visite et d'hébergement. La pension alimentaire est fixée en fonction des ressources de chaque parent et des besoins de l'enfant.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/F18786"
-  },
-  {
-    title: "Droit commercial - Création d'entreprise",
-    category: "commerce",
-    content: `La création d'entreprise nécessite le choix d'une forme juridique adaptée : entreprise individuelle, EURL, SARL, SAS, SA, etc. L'entrepreneur individuel n'a pas de capital minimum à apporter. La SARL nécessite au minimum 2 associés et la SAS au minimum 1 associé. L'immatriculation au Registre du Commerce et des Sociétés (RCS) est obligatoire pour les commerçants. Le Centre de Formalités des Entreprises (CFE) centralise les démarches. Le régime de la micro-entreprise offre des formalités simplifiées et un régime fiscal avantageux pour les petites activités.`,
-    url: "https://www.service-public.fr/professionnels-entreprises/vosdroits/N16178"
-  },
-  {
-    title: "Droit pénal - Droits de la victime",
+    title: "القانون الجنائي المغربي - جريمة السرقة والعقوبات المشددة (الفصل 505 وما يليه)",
     category: "penal",
-    content: `La victime d'une infraction pénale dispose de plusieurs droits : porter plainte auprès de la police, de la gendarmerie ou du procureur de la République ; se constituer partie civile pour demander réparation de son préjudice ; être assistée d'un avocat ; être informée de l'avancement de la procédure. Les associations d'aide aux victimes peuvent accompagner la victime dans ses démarches. La Commission d'Indemnisation des Victimes d'Infractions (CIVI) peut accorder une indemnisation même si l'auteur n'est pas identifié ou insolvable. Le délai de prescription pour porter plainte varie selon la nature de l'infraction.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/N19468"
+    content: `ينص الفصل 505 من مجموعة القانون الجنائي المغربي على أن من اختلس عمدا مالاً مملوكاً للغير يعد سارقاً ويعاقب بالحبس من سنة إلى خمس سنوات وغرامة مالية من 200 إلى 500 درهم. وتشدد العقوبة وتتحول لجناية تصل للسجن لسنوات أطول إذا اقترنت بظروف الليل، التعدد، حمل السلاح أو الكسر (الفصول 507 و 508 و 509). يحق للمتضرر التوجه فوراً لأقرب دائرة للشرطة القضائية لتحرير محضر شكاية، وإحالة الملف على وكيل الملك مع الانتصاب كمطالب بالحق المدني لجبر الضرر.`,
+    url: "https://adala.justice.gov.ma"
   },
   {
-    title: "Droit administratif - Recours administratif",
-    category: "administratif",
-    content: `Face à une décision administrative défavorable, le citoyen peut exercer un recours gracieux (auprès de l'auteur de la décision) ou hiérarchique (auprès du supérieur). En cas d'échec, un recours contentieux peut être introduit devant le tribunal administratif. Le délai de recours est généralement de 2 mois à compter de la notification de la décision. Le recours administratif préalable est parfois obligatoire. Le Défenseur des droits peut être saisi en cas de litige avec une administration. L'aide juridictionnelle permet aux personnes à faibles revenus de bénéficier de la prise en charge des frais de justice.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/F2474"
+    title: "القانون الجنائي المغربي - جريمة النصب والاحتيال (الفصل 540)",
+    category: "penal",
+    content: `يعاقب الفصل 540 من القانون الجنائي بالحبس من سنة إلى خمس سنوات وغرامة من 500 إلى 5000 درهم كل من استعمل الاحتيال ليوقع شخصاً في الغلط بتأكيدات خادعة أو إخفاء وقائع صحيحة واستولى بذلك على أمواله أو منقولاته. تتضاعف العقوبة إذا كان مرتكب الجريمة قد استغل صفة مهنية أو توجه لجمع اكتتابات عامة. يودع الضحية شكايته مباشرة لدى النيابة العامة مرفقة بكافة الأدلة (محادثات، تحويلات بنكية).`,
+    url: "https://adala.justice.gov.ma"
   },
   {
-    title: "Droit du travail - Congés payés",
-    category: "travail",
-    content: `Tout salarié a droit à des congés payés annuels. Le salarié acquiert 2,5 jours ouvrables de congés par mois de travail effectif, soit 30 jours ouvrables (5 semaines) par an. La période de référence pour le calcul des congés va du 1er juin au 31 mai. Le congé principal (minimum 12 jours ouvrables consécutifs) doit être pris entre le 1er mai et le 31 octobre. L'employeur fixe les dates de congés après consultation des représentants du personnel. L'indemnité de congés payés est calculée selon la méthode la plus favorable au salarié (maintien de salaire ou 1/10ème de la rémunération brute annuelle).`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/F2258"
+    title: "مدونة الأسرة - مسطرة التطليق للشقاق (المواد 94 إلى 97)",
+    category: "famille",
+    content: `بموجب المادتين 94 و97 من مدونة الأسرة المغربية (القانون رقم 70.03)، يمكن لأي من الزوجين طلب التطليق بسبب الشقاق أمام قسم قضاء الأسرة بالمحكمة الابتدائية المختصة. تقوم المحكمة بمحاولة الصلح وجوباً عبر حكمين أو مجلس العائلة. وفي حال تعذر الإصلاح، تحكم المحكمة بالتطليق وتحدد مستحقات الزوجة والأطفال (المتعة، نفقة العدة، السكن، ونفقة وحضانة الأطفال طبقاً للمادتين 84 و85). تفصل المحكمة في دعوى الشقاق وجوباً في أجل لا يتعدى 6 أشهر.`,
+    url: "https://adala.justice.gov.ma"
   },
   {
-    title: "Droit de la consommation - Protection du consommateur",
-    category: "general",
-    content: `Le consommateur bénéficie de nombreuses protections : droit de rétractation de 14 jours pour les achats à distance, garantie légale de conformité de 2 ans, garantie des vices cachés, obligation d'information du professionnel, interdiction des clauses abusives. En cas de litige, le consommateur peut saisir le médiateur de la consommation, la DGCCRF (Direction Générale de la Concurrence, de la Consommation et de la Répression des Fraudes), ou le tribunal. Les associations de consommateurs peuvent agir en justice au nom des consommateurs.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/N10515"
+    title: "مدونة الأسرة - أحكام النفقة والحضانة (المادة 168 و 188)",
+    category: "famille",
+    content: `تشمل النفقة شرعاً وقانوناً الغذاء والكسوة والعلاج والتعليم ومصاريف سكن المحضون طبقاً للمادة 188 من مدونة الأسرة. تقدر المحكمة النفقة اعتماداً على دخل الملزم بها ومستوى عيش الأسرة مع مراعاة التضخم. تخول الحضانة للأم ثم للأب ثم لأم الأم. إهمال أداء النفقة المحكوم بها قضائياً لمدة تفوق شهراً ونصف دون عذر مقبول يشكل جنحة إهمال الأسرة المعاقب عليها جنائياً في الفصل 480 من القانون الجنائي.`,
+    url: "https://adala.justice.gov.ma"
   },
   {
-    title: "Droit du logement - Aides au logement",
+    title: "قانون الكراء السكني والمهني - مسطرة التماطل والإفراغ (القانون 67.12)",
     category: "logement",
-    content: `Plusieurs aides financières existent pour le logement : l'APL (Aide Personnalisée au Logement), l'ALS (Allocation de Logement Social), et l'ALF (Allocation de Logement Familial). Ces aides sont versées par la CAF (Caisse d'Allocations Familiales) et calculées en fonction des ressources, de la composition du foyer et du montant du loyer. Le FSL (Fonds de Solidarité pour le Logement) peut accorder des aides pour le dépôt de garantie, le premier mois de loyer ou les dettes de loyer. La garantie Visale peut se porter caution pour les locataires qui n'ont pas de garant.`,
-    url: "https://www.service-public.fr/particuliers/vosdroits/N20360"
+    content: `يخضع كراء المحلات المعدة للسكنى أو للاستعمال المهني في المغرب لمقتضيات القانون رقم 67.12. يعتبر المحرر الكتابي ملزماً، ولا يجوز إفراغ المكتري إلا لأسباب قانونية محددة: التماطل في أداء الوجيبة الكرائية بعد توجيه إنذار رسمي، أو استرجاع المحل للاستعمال الشخصي، أو هدمه وإعادة بنائه. يجب تبليغ الإنذار عبر مفوض قضائي ومنح المكتري أجلاً قانونياً (15 يوماً في حالة التماطل، أو 3 أشهر في حالة الاسترجاع للسكن) قبل اللجوء للمحكمة الابتدائية للتصديق على الإنذار.`,
+    url: "https://adala.justice.gov.ma"
   },
-];
-
-async function seed() {
-  try {
-    console.log('Connecting to database...');
-    await db.sequelize.sync({ alter: true });
-    await db.setupPgVector();
-    console.log('Database synced and pgvector ready.');
-
-    // Check if resources already exist
-    const existingCount = await db.LegalResource.count();
-    if (existingCount > 0) {
-      console.log(`Database already has ${existingCount} resources. Skipping seed.`);
-      process.exit(0);
-    }
-
-    console.log(`Seeding ${LEGAL_RESOURCES.length} legal resources...`);
-
-    for (const resource of LEGAL_RESOURCES) {
-      // Create the resource first
-      const created = await db.LegalResource.create({
-        title: resource.title,
-        category: resource.category,
-        content: resource.content,
-        url: resource.url,
-      });
-
-      // Generate and store embedding
-      try {
-        const embedding = await generateEmbedding(resource.content);
-        const embeddingStr = `[${embedding.join(',')}]`;
-        await sequelize.query(
-          `UPDATE legal_resources SET embedding = :embedding::vector WHERE id = :id`,
-          { replacements: { embedding: embeddingStr, id: created.id } }
-        );
-        console.log(`  ✓ ${resource.title} (+ embedding)`);
-      } catch (embErr) {
-        console.warn(`  ⚠ ${resource.title} (no embedding: ${embErr.message})`);
-      }
-    }
-
-    console.log('\n✅ Seed complete!');
-    process.exit(0);
-  } catch (error) {
-    console.error('Seed failed:', error);
-    process.exit(1);
+  {
+    title: "قانون الكراء - استرجاع مبلغ الضمان والالتزامات المشتركة (المادة 7)",
+    category: "logement",
+    content: `تحدد المادة 7 من القانون 67.12 مبلغ الضمانة (الكفالة) في شهر واحد بالنسبة للمحلات السكنية وشهرين كحد أقصى للمحلات المهنية والتجارية. يلتزم المكري بإرجاع مبلغ الضمان للمكتري داخل أجل شهر ابتداءً من تاريخ تسليم المفاتيح وإفراغ المحل، بعد خصم المبالغ الواجبة على المكتري برسم إصلاح الأضرار الثابتة بمحضر المقارنة بين حالتي الأمكنة عند الدخول والخروج.`,
+    url: "https://adala.justice.gov.ma"
+  },
+  {
+    title: "قانون الالتزامات والعقود - عيوب الرضا وحماية المستهلك (DOC والقانون 31.08)",
+    category: "commerce",
+    content: `وفقاً لقانون الالتزامات والعقود المغربي ومقتضيات القانون رقم 31.08، يلتزم البائع قانوناً بضمان سلامة السلع والعيوب الخفية غير الظاهرة عند المعاينة. يمنح القانون المستهلك الحق في التراجع داخل أجل 7 أيام في المعاملات والبيوع عن بعد (التجارة الإلكترونية). تختص المحاكم التجارية بالنظر في النزاعات القائمة بين التجار والشركات والعقود التجارية وفق القانون 53.95.`,
+    url: "https://adala.justice.gov.ma"
+  },
+  {
+    title: "القضاء الإداري - مسطرة الطعن بالإلغاء للشطط في استعمال السلطة (القانون 41.90)",
+    category: "administratif",
+    content: `طبقاً للقانون رقم 41.90 المحدث للمحاكم الإدارية بالمغرب، يحق لكل ذي مصلحة الطعن ضد القرارات الصادرة عن الإدارات والمؤسسات العمومية والبلديات لعيب عدم الاختصاص، أو انعدام التعليل، أو مخالفة القانون. يجب تقديم التظلم الإداري أو الطعن بالإلغاء أمام المحكمة الإدارية داخل أجل 60 يوماً من تاريخ تبليغ القرار المطعون فيه أو نشره بالجريدة الرسمية.`,
+    url: "https://adala.justice.gov.ma"
   }
-}
-
-seed();
+];

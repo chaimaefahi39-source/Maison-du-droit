@@ -6,8 +6,7 @@ const isApiKeyConfigured = apiKey && apiKey.length > 20 && !apiKey.includes('you
 const openai = isApiKeyConfigured ? new OpenAI({ apiKey }) : null;
 
 /**
- * Generate an embedding vector for a given text using text-embedding-3-small.
- * Returns a 1536-dimensional float array or null if API key not available.
+ * توليد متجه الـ Embedding للنصوص
  */
 async function generateEmbedding(text) {
   if (!openai) return null;
@@ -24,7 +23,7 @@ async function generateEmbedding(text) {
 }
 
 /**
- * Legal assistant function definitions for OpenAI function calling.
+ * تعريف دوال الـ Function Calling
  */
 const legalFunctions = [
   {
@@ -95,7 +94,36 @@ const legalFunctions = [
 ];
 
 /**
- * Create a streaming chat completion with function calling capabilities or intelligent fallback.
+ * بناء الـ System Prompt المعتمد على القانون المغربي ومستندات الـ RAG
+ */
+function buildSystemPrompt(contextDocuments = []) {
+  let prompt = `أنت مساعد قانوني ذكي وخبير متخصص حصرياً في القانون المغربي (Droit Marocain) لمنصة "Maison du Droit".
+
+مهمتك: توجيه المواطنين والمستخدمين وتقديم الحلول الإجرائية والنصوص القانونية الدقيقة وفق التشريع المغربي.
+اللغات المدعومة: تفهم الدارجة المغربية بطلاقة، واللغة العربية الفصحى، والفرنسية. تجيب دائماً بنفس اللغة التي سأل بها المستخدم.
+
+هيكل الإجابة الإلزامي:
+1. 📌 **الإطار القانوني والنصوص المطبقة (Le Cadre Légal)**: اذكر رقم الفصل والقانون المعني بدقة (مثال: الفصل 505 من القانون الجنائي، مدونة الشغل الظهير 1.03.194، مدونة الأسرة القانون 70.03، قانون الكراء 67.12).
+2. 📖 **الشرح والتحليل**: شرح المقتضى القانوني بطريقة مبسطة يفهمها المواطن العادي.
+3. ⚖️ **المسطرة والإجراءات المتبعة خطوة بخطوة (La Procédure)**: إلى أين يتوجه المستخدم عملياً (الدائرة الأمنية/الدرك، مفتشية الشغل، كتابة الضبط بالمحكمة الابتدائية)، والوثائق المطلوبة، والآجال القانونية.
+4. ⚠️ **تنبيه وإخلاء مسؤولية**: تذكير بأن هذه الإجابة توجيهية وإعلامية ولا تعوض استشارة وتوكيل محامٍ مسجل بالهيئة.
+
+حدودك: ارفض فوراً أي طلب يهدف إلى مخالفة القانون أو الإفلات من العقاب أو تزوير الوثائق.`;
+
+  if (contextDocuments.length > 0) {
+    prompt += `\n\n--- مراجع قانونية مغربية مستخرجة من قاعدة البيانات (RAG Context) ---\n`;
+    contextDocuments.forEach((doc, idx) => {
+      prompt += `\n[مرجع ${idx + 1}: ${doc.title} (${doc.category})]\n${doc.content}\n`;
+    });
+    prompt += `\n--- نهاية المراجع ---`;
+    prompt += `\nاعتمد على هذه المراجع المغربية الرسمية في بناء جوابك والاستشهاد بها.`;
+  }
+
+  return prompt;
+}
+
+/**
+ * البث المباشر للإجابة (Streaming)
  */
 async function createStreamingChat(messages, contextDocuments = []) {
   if (openai) {
@@ -108,64 +136,93 @@ async function createStreamingChat(messages, contextDocuments = []) {
         messages: fullMessages,
         tools: legalFunctions,
         stream: true,
-        temperature: 0.3,
+        temperature: 0.2,
         max_tokens: 2048,
       });
 
       return stream;
     } catch (err) {
-      console.warn('OpenAI stream failed, using fallback assistant engine:', err.message);
+      console.warn('OpenAI streaming failed, falling back to local engine:', err.message);
     }
   }
 
-  // Fallback streaming generator
   return createFallbackStream(messages, contextDocuments);
 }
 
 /**
- * Fallback streaming generator when OpenAI API is unconfigured or unavailable.
+ * محرك التوجيه القانوني المحلي الذكي (عند عدم توفر مفتاح OpenAI)
  */
 async function* createFallbackStream(messages, contextDocuments = []) {
   const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content || '';
-  const queryLower = lastUserMessage.toLowerCase();
+  const q = lastUserMessage.toLowerCase();
 
-  let responseText = '';
+  let response = '';
 
-  if (contextDocuments.length > 0) {
-    responseText += `Bonjour ! Voici les références juridiques pertinentes relatives à votre demande :\n\n`;
-    contextDocuments.forEach((doc, idx) => {
-      responseText += `📌 **${doc.title}** (${(doc.category || 'Général').toUpperCase()})\n`;
-      responseText += `${doc.content}\n\n`;
-    });
-    responseText += `💡 *Note : Ces informations sont basées sur les textes juridiques en vigueur. Elles ne remplacent pas la consultation d'un avocat.*`;
-  } else if (queryLower.includes('locataire') || queryLower.includes('logement') || queryLower.includes('bail') || queryLower.includes('loyer')) {
-    responseText = `En ce qui concerne le **droit du logement** :\n\n` +
-      `- **Bail d'habitation** : Le contrat de location fixe la durée (3 ans minimum pour un propriétaire particulier). Le bailleur ne peut donner congé qu'à l'échéance et pour un motif légitime.\n` +
-      `- **Trêve hivernale** : Du 1er novembre au 31 mars, aucune expulsion locative ne peut avoir lieu.\n` +
-      `- **Garantie & Dépôt** : Le dépôt de garantie est limité à 1 mois de loyer hors charges pour un logement vide.\n\n` +
-      `Si vous rencontrez un litige avec votre propriétaire, vous pouvez soumettre une demande détaillée dans la rubrique "Demandes".`;
-  } else if (queryLower.includes('travail') || queryLower.includes('licenciement') || queryLower.includes('contrat') || queryLower.includes('employeur')) {
-    responseText = `Concernant le **droit du travail** :\n\n` +
-      `- **Contrat de travail** : Le CDI est la règle générale. Le CDD ne s'applique que pour des missions temporaires et précises.\n` +
-      `- **Licenciement** : L'employeur doit justifier d'un motif réel et sérieux et respecter la procédure (entretien préalable, lettre recommandée, préavis).\n` +
-      `- **Indemnités** : Une indemnité de licenciement est due à partir de 8 mois d'ancienneté.\n\n` +
-      `Vous pouvez consulter les détails complets dans notre rubrique "Ressources".`;
-  } else if (queryLower.includes('divorce') || queryLower.includes('garde') || queryLower.includes('famille') || queryLower.includes('enfant')) {
-    responseText = `En matière de **droit de la famille** :\n\n` +
-      `- **Divorce** : Peut être prononcé par consentement mutuel (devant notaire avec 2 avocats) ou par voie judiciaire devant le juge aux affaires familiales (JAF).\n` +
-      `- **Garde des enfants** : La résidence peut être fixée chez l'un des parents ou en alternance, en fonction de l'intérêt supérieur de l'enfant.\n` +
-      `- **Pension alimentaire** : Fixée selon les revenus des parents et les besoins de l'enfant.`;
-  } else {
-    responseText = `Bonjour ! Je suis l'assistant juridique virtuel de **Maison du Droit**.\n\n` +
-      `Je suis à votre disposition pour vous orienter et vous informer sur vos droits :\n\n` +
-      `• 💼 **Droit du travail** (Contrats, licenciement, congés, droits du salarié)\n` +
-      `• 🏠 **Droit du logement** (Bail, loyer, expulsion, droits du locataire)\n` +
-      `• 👨‍👩‍👧 **Droit de la famille** (Divorce, garde d'enfants, pension alimentaire)\n` +
-      `• 🏛️ **Droit administratif & commercial**\n\n` +
-      `Posez-moi votre question ou décrivez votre situation !`;
+  // 1. إذا عثر الـ RAG على نصوص متطابقة من قاعدة البيانات
+  if (contextDocuments.length > 0 && (contextDocuments[0].similarity > 0.4 || !openai)) {
+    const topDoc = contextDocuments[0];
+    response = `بناءً على المقتضيات القانونية المعمول بها في التشريع المغربي:\n\n` +
+      `📌 **${topDoc.title}**\n` +
+      `${topDoc.content}\n\n` +
+      `⚖️ **المسطرة القانونية الموصى بها:**\n` +
+      `1. تحضير كافة الإثباتات والوثائق التي تثبت الواقعة موضوع النزاع.\n` +
+      `2. إيداع الشكاية أو الطلب لدى الجهة المختصة (المحكمة الابتدائية أو الإدارة المعنية).\n` +
+      `3. يمكنك تسجيل هذه القضية مباشرة من قسم "Demandes" في التطبيق لتتبع الإجراءات.\n\n` +
+      `⚠️ *تنبيه: هذه المعلومات ذات صبغة إرشادية وتوجيهية فقط ولا تغني عن استشارة محامٍ مرخص.*`;
+  } 
+  // 2. قضايا السرقة والجرائم الجنائية
+  else if (q.includes('vol') || q.includes('volé') || q.includes('sr9a') || q.includes('ser9a') || q.includes('سرقة') || q.includes('سريقة') || q.includes('chffar')) {
+    response = `📌 **الإطار القانوني (القانون الجنائي المغربي):**\n` +
+      `وفقاً لمقتضيات **الفصل 505 وما يليه من مجموعة القانون الجنائي المغربي**، تُعرّف السرقة بأنها اختلاس مال منقول مملوك للغير بنية تملكه، ويعاقب عليها القانون بالحبس من سنة إلى 5 سنوات، وتتحول إلى جناية مشددة (الفصول 507-509) إذا تمت بالكسر، أو ليلاً، أو بتعدد الجناة أو باستعمال السلاح.\n\n` +
+      `⚖️ **المسطرة القانونية الواجب اتباعها عملياً:**\n` +
+      `1. **التبليغ الفوري:** التوجه فوراً إلى أقرب مركز شرطة (الأمن الوطني بالمدينة) أو مركز الدرك الملكي (في القرى ومشارف المدن).\n` +
+      `2. **تحرير محضر شكاية رسمي:** الإدلاء بكافة تفاصيل الحادث، قائمة المسروقات، وأوصاف المشتبه بهم إن وجدت، مع طلب وصل إيداع ورقم المحضر وتاريخه.\n` +
+      `3. **المتابعة لدى النيابة العامة:** يحال المحضر بعد انتهاء البحث التمهيدي على وكيل الملك بالمحكمة الابتدائية، مع إمكانية الانتصاب كمطالب بالحق المدني للمطالبة باسترجاع المسروقات والتعويض عن الضرر.\n\n` +
+      `⚠️ *تنبيه: هذا التوجيه إعلامي، ويُنصح بمتابعة الشكاية أو توكيل محامٍ في حال تشعب الملف.*`;
+  }
+  // 3. قضايا الكراء والسكن والنزاعات الإيجارية
+  else if (q.includes('locataire') || q.includes('logement') || q.includes('bail') || q.includes('loyer') || q.includes('kré') || q.includes('kra') || q.includes('كراء') || q.includes('إفراغ')) {
+    response = `📌 **الإطار القانوني (قانون الكراء السكني والمهني - القانون رقم 67.12):**\n` +
+      `ينظم **القانون 67.12** العلاقة بين المكري والمكتري في المغرب، ويفرض صراحة ضرورة إبرام عقد كراء كتابي مصحح الإمضاء وتثبيت حالة الأمكنة.\n\n` +
+      `⚖️ **أبرز الحقوق والمساطر المقررة:**\n` +
+      `1. **حماية المكتري من الإفراغ التعسفي:** لا يمكن للمكري إفراغ المكتري إلا لأسباب قانونية حصرية (التماطل في الأداء، الهدم لإعادة البناء، أو استرجاع المحل للسكن الشخصي).\n` +
+      `2. **مسطرة الإنذار المسبق:** يُلزم القانون المكري بتوجيه إنذار رسمي بواسطة مفوض قضائي مع منح أجل 15 يوماً في حالة عدم أداء الوجيبة، أو 3 أشهر في حالة الاسترجاع للسكنى.\n` +
+      `3. **الطعن أمام القضاء:** لا يتم الإفراغ إلا بصدور حكم قضائي مصادق عليه من رئيس المحكمة الابتدائية أو قاضي المستعجلات.\n\n` +
+      `⚠️ *تنبيه: الإفراغ دون إذن قضائي أو قطع الماء والكهرباء يعد فعلاً معاقباً عليه قانوناً.*`;
+  }
+  // 4. قضايا العمل والنزاعات العمالية والطرد
+  else if (q.includes('travail') || q.includes('licenciement') || q.includes('tard') || q.includes('khdma') || q.includes('choghl') || q.includes('طرد') || q.includes('شغل') || q.includes('خدمة')) {
+    response = `📌 **الإطار القانوني (مدونة الشغل المغربية - القانون رقم 65.99):**\n` +
+      `تحدد مقتضيات **المواد 35 و41 و53 و62 من مدونة الشغل** الضمانات القانونية للأجراء، وتعتبر أي فصل لا يستند إلى خطأ جسيم ثابتاً طرداً تعسفياً يعطي الحق في التعويض.\n\n` +
+      `⚖️ **المسطرة القانونية الواجب اتباعها:**\n` +
+      `1. **احترام مسطرة الاستماع (المادة 62):** يجب على المشغل الاستماع للأجير بحضور مندوب الأجراء داخل أجل 8 أيام من تاريخ ثبوت الخطأ قبل اتخاذ أي مقرر بالفصل.\n` +
+      `2. **اللجوء إلى مفتشية الشغل:** التوجه إلى مفتش الشغل التابع للدائرة الترابية لفتح مسطرة الصلح التمهيدي واستدعاء المشغل.\n` +
+      `3. **رفع دعوى الفصل التعسفي:** في حال فشل الصلح التحريري، يجب رفع دعوى أمام قسم قضاء النزاعات الاجتماعية بالمحكمة الابتدائية داخل أجل لا يتعدى 90 يوماً للمطالبة بالتعويضات (الإخطار، الفصل، والضرر).\n\n` +
+      `⚠️ *تنبيه: التوجيه إعلامي ولا يعوض خدمات المحامي المتخصص في قضايا الشغل.*`;
+  }
+  // 5. قضايا الأسرة والطلاق والنفقة
+  else if (q.includes('divorce') || q.includes('famille') || q.includes('talaq') || q.includes('chiqaq') || q.includes('نفقة') || q.includes('طلاق') || q.includes('شقاق') || q.includes('حضانة')) {
+    response = `📌 **الإطار القانوني (مدونة الأسرة المغربية - القانون رقم 70.03):**\n` +
+      `تنظم **المواد 94 إلى 97 من مدونة الأسرة** دعوى التطليق للشقاق، وهو إجراء يتيح لأحد الزوجين أو كلاهما طلب إنهاء العلاقة الزوجية عند استحكام الخلاف.\n\n` +
+      `⚖️ **المسطرة والإجراءات القضائية:**\n` +
+      `1. **تقديم مقال افتتاحي للدعوى:** يُودع المقال لدى قسم قضاء الأسرة بالمحكمة الابتدائية المختصة مكانياً.\n` +
+      `2. **جلسات الصلح الإلزامية:** تعقد المحكمة جلسة أو جلستين لمحاولة التوفيق، ويمكنها تكليف حكمين أو مجلس العائلة للإصلاح.\n` +
+      `3. **الحكم وتحديد المستحقات:** في حال تعذر الصلح، تقضي المحكمة بالطلاق وتلزم الزوج بإيداع مستحقات الزوجة والأبناء بصندوق المحكمة (المتعة، العدة، السكنى، ونفقة الأطفال وحضانتهم طبقاً للمادتين 84 و85) في أجل أقصاه 30 يوماً.\n\n` +
+      `⚠️ *تنبيه: قضايا الأسرة تتطلب استشارة محامٍ لتحديد مبالغ المستحقات بدقة.*`;
+  }
+  // 6. الاستقبال العام
+  else {
+    response = `مرحباً بك في منصة **Maison du Droit** للمساعدة القانونية المغربية 🇲🇦.\n\n` +
+      `يمكنني إرشادك وتحديد النصوص والمساطر المتبعة في:\n\n` +
+      `• 💼 **مدونة الشغل** (نزاعات العقود، الطرد التعسفي، التعويضات القانونية)\n` +
+      `• 🏠 **قانون الكراء السكني والمهني** (حقوق المكتري، التماطل، مساطر الإفراغ)\n` +
+      `• ⚖️ **القانون الجنائي والمساطر الجنائية** (الشكايات، السرقات، النيابة العامة والمحاكم)\n` +
+      `• 👨‍👩‍👧 **مدونة الأسرة** (الطلاق، الشقاق، النفقة، الحضانة)\n` +
+      `• 🏛️ **القانون التجاري والإداري** (المعاملات التجارية وحماية المستهلك)\n\n` +
+      `تفضل بطرح استفسارك بالتفصيل وسأقدم لك الإطار القانوني والمسطرة خطوة بخطوة.`;
   }
 
-  const words = responseText.split(' ');
+  const words = response.split(' ');
   for (let i = 0; i < words.length; i++) {
     const chunkText = (i === 0 ? '' : ' ') + words[i];
     yield {
@@ -176,12 +233,12 @@ async function* createFallbackStream(messages, contextDocuments = []) {
         },
       ],
     };
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 18));
   }
 }
 
 /**
- * Create a non-streaming chat completion (used after function calls).
+ * دالة الإكمال غير المباشر بعد تنفيذ الوظائف
  */
 async function createChatCompletion(messages, contextDocuments = []) {
   if (openai) {
@@ -193,7 +250,7 @@ async function createChatCompletion(messages, contextDocuments = []) {
         model: 'gpt-4o-mini',
         messages: fullMessages,
         tools: legalFunctions,
-        temperature: 0.3,
+        temperature: 0.2,
         max_tokens: 2048,
       });
 
@@ -205,39 +262,12 @@ async function createChatCompletion(messages, contextDocuments = []) {
 
   return {
     message: {
-      content: "Merci pour votre question. Pour toute démarche juridique approfondie, vous pouvez également créer une demande dans l'application.",
+      content: "تمت معالجة الإجراء المطلوب بنجاح، يمكنك متابعة التفاصيل في شاشة الطلبات أو الموارد.",
     },
   };
 }
 
-/**
- * Build the system prompt with injected RAG context documents.
- */
-function buildSystemPrompt(contextDocuments = []) {
-  let systemPrompt = `Tu es un assistant juridique intelligent de "Maison du Droit", une application d'aide juridique.
-
-Ton rôle est d'aider les utilisateurs à comprendre leurs droits et obligations juridiques.
-
-Règles importantes :
-- Tu donnes des informations juridiques générales, pas des conseils juridiques personnalisés.
-- Tu précises toujours que tes réponses ne remplacent pas la consultation d'un avocat.
-- Tu réponds en français de manière claire et accessible.
-- Tu cites les sources juridiques quand c'est pertinent.
-- Tu peux utiliser les fonctions disponibles pour aider l'utilisateur (créer des demandes, rechercher des ressources).
-- Sois empathique et professionnel.`;
-
-  if (contextDocuments.length > 0) {
-    systemPrompt += `\n\n--- DOCUMENTS JURIDIQUES DE RÉFÉRENCE ---\n`;
-    contextDocuments.forEach((doc, i) => {
-      systemPrompt += `\n[Document ${i + 1}: ${doc.title} | Catégorie: ${doc.category}]\n${doc.content}\n`;
-    });
-    systemPrompt += `\n--- FIN DES DOCUMENTS ---\n`;
-    systemPrompt += `\nUtilise ces documents comme base pour répondre. Cite les documents pertinents dans ta réponse.`;
-  }
-
-  return systemPrompt;
-}
-
+// ─── Exportations obligatoires ─────────────────────────────────
 module.exports = {
   generateEmbedding,
   createStreamingChat,
