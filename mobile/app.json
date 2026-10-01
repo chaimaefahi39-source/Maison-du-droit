@@ -4,7 +4,7 @@
     "slug": "maison-du-droit",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/favicon.png",
+    "icon": "./assets/icon.png",
     "scheme": "maisondudroit",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,

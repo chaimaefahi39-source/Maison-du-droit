@@ -9,6 +9,10 @@ const { generateEmbedding } = require('./openai.service');
 async function searchSimilarDocuments(query, topK = 5, category = null) {
   try {
     const queryEmbedding = await generateEmbedding(query);
+    if (!queryEmbedding || !Array.isArray(queryEmbedding)) {
+      return fallbackTextSearch(query, topK, category);
+    }
+
     const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
     let whereClause = '';
@@ -19,7 +23,6 @@ async function searchSimilarDocuments(query, topK = 5, category = null) {
       replacements.category = category;
     }
 
-    // Only search rows that have an embedding
     const condition = whereClause
       ? `${whereClause} AND embedding IS NOT NULL`
       : 'WHERE embedding IS NOT NULL';
@@ -36,8 +39,6 @@ async function searchSimilarDocuments(query, topK = 5, category = null) {
 
     return results;
   } catch (error) {
-    console.error('RAG search error:', error.message);
-    // Fallback to basic text search if vector search fails
     return fallbackTextSearch(query, topK, category);
   }
 }
