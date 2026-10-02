@@ -1,7 +1,13 @@
 require('dotenv').config();
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { searchSimilarDocuments, fallbackTextSearch } = require('./rag.service');
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+let genAI = null;
+
+if (apiKey && !apiKey.includes('=')) {
+  genAI = new GoogleGenerativeAI(apiKey);
+}
 
 async function generateEmbedding(text) {
   return null;
@@ -9,6 +15,9 @@ async function generateEmbedding(text) {
 
 const legalFunctions = [];
 
+/**
+ * Builds system prompt with context documents.
+ */
 function buildSystemPrompt(contextDocuments = []) {
   let prompt = `أنت مستشار ومساعد قانوني خبير ومتخصص في القانون المغربي (Droit Marocain) لمنصة "Maison du Droit".
 
@@ -16,10 +25,10 @@ function buildSystemPrompt(contextDocuments = []) {
 اللغة: أجب بنفس اللغة التي سأل بها المستخدم (الدارجة المغربية، العربية، أو الفرنسية).
 
 الهيكل الإلزامي للجواب:
-1. 📌 **الإطار القانوني**: النص القانوني ورقم الفصل بالضبط (القانون الجنائي المغربي، مدونة الشغل 65.99، مدونة الأسرة 70.03، قانون الالتزامات والعقود DOC، قانون الكراء 67.12).
-2. 📖 **الشرح والتحليل**: شرح الموقف والحقوق والواجبات ببساطة ووضوح.
-3. ⚖️ **المسطرة القانونية خطوة بخطوة**: الإجراءات العملية (المحكمة المختصة، كتابة الضبط، الشرطة، الوثائق المطلوبة، والآجال).
-4. ⚠️ **تنبيه**: تذكير بأن هذه المعلومات توجيهية وإرشادية ولا تعوض استشارة وتوكيل محامٍ.
+1. 📌 **الإطار القانوني (Cadre Légal)**: النص القانوني ورقم الفصل بالضبط (القانون الجنائي المغربي، مدونة الشغل 65.99، مدونة الأسرة 70.03، قانون الالتزامات والعقود DOC، قانون الكراء 67.12).
+2. 📖 **الشرح والتحليل (Analyse Juridique)**: شرح الموقف والحقوق والواجبات ببساطة ووضوح.
+3. ⚖️ **المسطرة القانونية خطوة بخطوة (Procédure et Autorités Compétentes)**: الإجراءات العملية (المحكمة المختصة، كتابة الضبط، الشرطة، الوثائق المطلوبة، والآجال).
+4. ⚠️ **تنبيه (Avertissement)**: تذكير بأن هذه المعلومات توجيهية وإرشادية ولا تعوض استشارة وتوكيل محامٍ.
 
 Garde-fous: ارفض فوراً أي مساعدة لارتكاب مخالفة أو جريمة.`;
 
@@ -34,15 +43,13 @@ Garde-fous: ارفض فوراً أي مساعدة لارتكاب مخالفة أ
 
 /**
  * Sanitizes and prepares message history for Gemini API.
- * Guarantees strict user <-> model role alternation ending with user prompt.
  */
-function prepareGeminiContents(messages) {
+function prepareGeminiHistory(messages) {
   if (!Array.isArray(messages) || messages.length === 0) {
     return [];
   }
 
-  // 1. Filter out error messages and normalize roles
-  const cleanMessages = [];
+  const clean = [];
   for (const m of messages) {
     if (!m || !m.content || typeof m.content !== 'string') continue;
     const content = m.content.trim();
@@ -50,18 +57,17 @@ function prepareGeminiContents(messages) {
 
     const isError = /^(Erreur|Error|⚠️ Erreur|Le serveur n'a pas)/i.test(content) ||
                     content.includes('Erreur de connexion') ||
-                    content.includes('Erreur Chat Controller');
+                    content.includes('Erreur Chat Controller') ||
+                    content.includes('Erreur Gemini');
     if (isError) continue;
 
     const role = (m.role === 'assistant' || m.role === 'model') ? 'model' : 'user';
-    cleanMessages.push({ role, content });
+    clean.push({ role, parts: [{ text: content }] });
   }
 
-  if (cleanMessages.length === 0) return [];
-
-  // 2. Enforce strict alternating sequence (user, model, user, model...)
+  // Ensure alternating roles ending before the latest turn
   const alternated = [];
-  for (const msg of cleanMessages) {
+  for (const msg of clean) {
     if (alternated.length > 0 && alternated[alternated.length - 1].role === msg.role) {
       alternated[alternated.length - 1] = msg;
     } else {
@@ -69,23 +75,11 @@ function prepareGeminiContents(messages) {
     }
   }
 
-  // 3. Ensure sequence starts with 'user'
   while (alternated.length > 0 && alternated[0].role !== 'user') {
     alternated.shift();
   }
 
-  // 4. Ensure sequence ends with 'user'
-  while (alternated.length > 0 && alternated[alternated.length - 1].role !== 'user') {
-    alternated.pop();
-  }
-
-  if (alternated.length === 0) return [];
-
-  // 5. Convert to Gemini REST API structure
-  return alternated.map(m => ({
-    role: m.role,
-    parts: [{ text: m.content }]
-  }));
+  return alternated;
 }
 
 /**
@@ -95,19 +89,22 @@ function prepareGeminiContents(messages) {
 async function generateDatabaseDrivenFallback(userMessage, initialContextDocs = []) {
   let docs = [...(initialContextDocs || [])];
 
-  // If no initial context docs were provided, dynamically search the database
   if (docs.length === 0) {
     try {
       docs = await searchSimilarDocuments(userMessage, 3);
     } catch (e) {
       console.warn('Database dynamic search fallback error:', e.message);
+      try {
+        docs = await fallbackTextSearch(userMessage, 3);
+      } catch (err) {
+        docs = [];
+      }
     }
   }
 
   const query = (userMessage || '').trim();
   const lowerQuery = query.toLowerCase();
 
-  // Determine competent authority & court dynamically based on prompt terms
   let authorityName = "المحكمة الإبتدائية المختصة (Tribunal de Première Instance)";
   let procedureSteps = [
     "1. إعداد ملف التظلم والوثائق والمحررات المكتوبة المربطة بالنزاع.",
@@ -153,7 +150,7 @@ async function generateDatabaseDrivenFallback(userMessage, initialContextDocs = 
   }
 
   let dbArticlesSection = "";
-  if (docs.length > 0) {
+  if (docs && docs.length > 0) {
     dbArticlesSection = `📌 **النصوص والوثائق القانونية المستخرجة من قاعدة البيانات (Legal Resources DB)**:\n`;
     docs.forEach((doc, idx) => {
       dbArticlesSection += `\n**[مورد قانوني ${idx + 1}: ${doc.title || 'تشريع مغربي'}]** (${doc.category || 'عام'})\n${doc.content}\n`;
@@ -162,7 +159,7 @@ async function generateDatabaseDrivenFallback(userMessage, initialContextDocs = 
     dbArticlesSection = `📌 **الإطار القانوني العام (Cadre Légal)**:\nيخضع موضوعك لمقتضيات التشريع المغربي النافذ، وفي مقدمته **ظهير الالتزامات والعقود (D.O.C.)** والمساطر القضائية المعمول بها بالمملكة المغربية.`;
   }
 
-  const fullResponse = `### ⚖️ المساعدة والتحليل القانوني
+  return `### ⚖️ المساعدة والتحليل القانوني
 
 ${dbArticlesSection}
 
@@ -171,24 +168,22 @@ ${dbArticlesSection}
 - توفر النصوص التشريعية المغربية الضمانات الإجرائية والقانونية لحماية الحقوق والمراكز التعاقدية والشخصية.
 - يتعين الاعتماد على الحجج الكتابية والمحررات المصادق عليها لإثبات الالتزامات أمام الهيئات القضائية.
 
-⚖️ **الجهة المختصة والمسطرة خطوة بخطوة (Procédure et Autorités Competentes)**:
+⚖️ **الجهة المختصة والمسطرة خطوة بخطوة (Procédure et Autorités Compétentes)**:
 - **الجهة القضائية/الإدارية المختصة**: **${authorityName}**
 ${procedureSteps.join('\n')}
 
 ⚠️ **تنبيه مهم (Avertissement)**:
 تم استخراج هذه المعطيات ديناميكياً بناءً على النصوص والوثائق القانونية المتاحة بقاعدة البيانات التشريعية. هذه الإرشادات توجيهية ولا تغني عن استشارة محامٍ ممارس مقيد بهيئة المحامين بالمغرب.`;
-
-  return fullResponse;
 }
 
 /**
- * Async generator function for streaming chat.
+ * Async generator for streaming chat.
  * ALWAYS yields objects in the shape: { choices: [{ delta: { content: string } }] }
  */
 async function* createStreamingChat(messages, contextDocuments = []) {
   const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content || '';
 
-  // Helper generator to yield text smoothly in small chunks
+  // Helper generator to stream text smoothly chunk by chunk
   async function* streamText(text) {
     if (!text) return;
     const words = text.split(' ');
@@ -197,75 +192,76 @@ async function* createStreamingChat(messages, contextDocuments = []) {
       yield {
         choices: [{ delta: { content: piece }, finish_reason: null }]
       };
-      await new Promise(r => setTimeout(r, 15));
+      await new Promise(r => setTimeout(r, 12));
     }
     yield {
       choices: [{ delta: {}, finish_reason: 'stop' }]
     };
   }
 
-  // Fallback if GEMINI_API_KEY is not configured
-  if (!GEMINI_API_KEY || !GEMINI_API_KEY.trim()) {
-    console.info('GEMINI_API_KEY non configurée. Activation du moteur RAG basé sur la base de données.');
+  if (!genAI) {
+    console.warn('GEMINI_API_KEY non configurée. Activation du moteur RAG basé sur la base de données.');
     const fallbackText = await generateDatabaseDrivenFallback(lastUserMessage, contextDocuments);
     yield* streamText(fallbackText);
     return;
   }
 
-  try {
-    const systemInstruction = buildSystemPrompt(contextDocuments);
-    const geminiContents = prepareGeminiContents(messages);
+  // Model candidate priority list
+  const candidateModels = [
+    'gemini-3.5-flash',
+    'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-flash-latest',
+    'gemini-1.5-flash'
+  ];
 
-    const contentsPayload = geminiContents.length > 0
-      ? geminiContents
-      : [{ role: 'user', parts: [{ text: lastUserMessage }] }];
+  let lastError = null;
+  const systemInstruction = buildSystemPrompt(contextDocuments);
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemInstruction }]
-        },
-        contents: contentsPayload
-      })
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      console.error('Gemini API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errBody
+  for (const modelName of candidateModels) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction,
       });
-      throw new Error(`Gemini API returned status ${response.status}`);
+
+      // Stream response from Gemini
+      const result = await model.generateContentStream(lastUserMessage);
+
+      let chunkCount = 0;
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        if (text) {
+          chunkCount++;
+          yield {
+            choices: [{ delta: { content: text }, finish_reason: null }]
+          };
+        }
+      }
+
+      if (chunkCount > 0) {
+        yield {
+          choices: [{ delta: {}, finish_reason: 'stop' }]
+        };
+        return; // Success!
+      }
+    } catch (err) {
+      lastError = err;
+      console.error(`Gemini API Error [model: ${modelName}]:`, err.message || err);
+      // Continue loop to try next candidate model
     }
-
-    const data = await response.json();
-    if (data.error) {
-      console.error('Gemini API Error:', data.error);
-      throw new Error(data.error.message || 'Gemini error');
-    }
-
-    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!replyText || !replyText.trim()) {
-      throw new Error('Gemini response was empty');
-    }
-
-    yield* streamText(replyText);
-
-  } catch (err) {
-    console.error('Gemini API Error:', err.message || err);
-    console.info('Activation du moteur RAG dynamique basé sur la base de données.');
-    const fallbackText = await generateDatabaseDrivenFallback(lastUserMessage, contextDocuments);
-    yield* streamText(fallbackText);
   }
+
+  // If all Gemini LLM candidate models fail, fallback seamlessly to Database RAG Engine
+  console.error('Gemini API Error: All LLM models failed. Activating Database RAG Fallback.');
+  const fallbackText = await generateDatabaseDrivenFallback(lastUserMessage, contextDocuments);
+  yield* streamText(fallbackText);
 }
 
 async function createChatCompletion(messages, contextDocuments = []) {
-  return { message: { content: "" } };
+  const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content || '';
+  const fallbackText = await generateDatabaseDrivenFallback(lastUserMessage, contextDocuments);
+  return { message: { content: fallbackText } };
 }
 
 module.exports = {
