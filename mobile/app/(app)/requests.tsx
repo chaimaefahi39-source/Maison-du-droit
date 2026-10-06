@@ -243,8 +243,16 @@ export default function RequestsScreen() {
             {selectedRequest && (
               <>
                 <View style={styles.modalHeader}>
-                  <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '10' }]}>
-                    <Text style={[styles.categoryText, { color: colors.primary }]}>{selectedRequest.category}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '10' }]}>
+                      <Text style={[styles.categoryText, { color: colors.primary }]}>{selectedRequest.category}</Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedRequest.status) + '18' }]}>
+                      <Feather name={getStatusIcon(selectedRequest.status)} size={12} color={getStatusColor(selectedRequest.status)} />
+                      <Text style={[styles.statusText, { color: getStatusColor(selectedRequest.status) }]}>
+                        {getStatusLabel(selectedRequest.status)}
+                      </Text>
+                    </View>
                   </View>
                   <TouchableOpacity onPress={() => setSelectedRequest(null)}>
                     <Feather name="x" size={24} color={colors.text} />

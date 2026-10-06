@@ -208,11 +208,9 @@ async function* createStreamingChat(messages, contextDocuments = []) {
 
   // Model candidate priority list
   const candidateModels = [
-    'gemini-3.5-flash',
     'gemini-3.8-flash',
-    'gemini-2.5-flash',
-    'gemini-flash-latest',
-    'gemini-1.5-flash'
+    'gemini-3.5-flash',
+    'gemini-3.1-pro-preview',
   ];
 
   let lastError = null;
@@ -264,9 +262,85 @@ async function createChatCompletion(messages, contextDocuments = []) {
   return { message: { content: fallbackText } };
 }
 
+/**
+ * Generates a structured AI legal analysis for a submitted legal request.
+ */
+async function analyzeLegalRequest({ title, description, category }) {
+  const query = `${title} ${description}`.trim();
+
+  let contextDocuments = [];
+  try {
+    contextDocuments = await searchSimilarDocuments(query, 3, category && category !== 'general' ? category : null);
+  } catch (e) {
+    console.warn('RAG search for legal request analysis skipped:', e.message);
+  }
+
+  let contextText = '';
+  if (contextDocuments && contextDocuments.length > 0) {
+    contextText = contextDocuments.map((doc, idx) => `[Source ${idx + 1}: ${doc.title}]\n${doc.content}`).join('\n\n');
+  }
+
+  const prompt = `Vous êtes un conseiller juridique expert en droit marocain pour l'application "Maison du Droit".
+
+Veuillez effectuer une analyse juridique approfondie de la demande suivante :
+- **Titre de la demande** : ${title}
+- **Catégorie** : ${category || 'général'}
+- **Description de la situation** : ${description}
+
+${contextText ? `--- Textes juridiques et références issus de la base de données RAG ---\n${contextText}\n---` : ''}
+
+Rédigez obligatoirement votre réponse en suivant la structure ci-dessous :
+
+1. 📌 **Cadre légal marocain (articles précis)**
+Identifiez et citez les textes de loi et articles précis applicables dans le droit marocain (Code du travail loi 65.99, Code pénal, Moudawana / Code de la famille, Dahir des Obligations et Contrats D.O.C., Code de procédure civile, Loi 67.12 sur le bail, etc.).
+
+2. 📖 **Analyse juridique détaillée**
+Expliquez la situation en qualifiant juridiquement les faits. Précisez les droits, les obligations et la protection juridique de l'usager.
+
+3. ⚖️ **Démarches pratiques & juridiction compétente**
+Indiquez la juridiction compétente (ex: Tribunal de Première Instance - Section de famille / Chambre sociale, Tribunal de Commerce, etc.), les autorités à saisir (Inspecteur du travail, النيابة العامة, etc.), les documents justificatifs nécessaires et la procédure étape par étape.
+
+4. ⚠️ **Avertissement**
+Rappelez expressément que cette analyse est délivrée à titre d'information et d'orientation juridique par l'assistant IA et ne remplace pas la consultation d'un avocat inscrit au barreau.`;
+
+  if (genAI) {
+    const candidateModels = [
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-3.5-flash',
+      'gemini-3.8-flash',
+      'gemini-flash-latest'
+    ];
+
+    for (const modelName of candidateModels) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const generatePromise = model.generateContent(prompt);
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout for model ${modelName}`)), 10000)
+        );
+
+        const result = await Promise.race([generatePromise, timeoutPromise]);
+        const response = await result.response;
+        const text = response.text();
+        if (text && text.trim()) {
+          return text.trim();
+        }
+      } catch (err) {
+        console.warn(`Gemini API Error [model: ${modelName}]:`, err.message || err);
+      }
+    }
+  }
+
+  console.warn('Gemini API non disponible ou modèles en échec. Utilisation du moteur de secours RAG.');
+  return await generateDatabaseDrivenFallback(query, contextDocuments);
+}
+
 module.exports = {
   generateEmbedding,
   createStreamingChat,
   createChatCompletion,
+  analyzeLegalRequest,
   legalFunctions,
 };

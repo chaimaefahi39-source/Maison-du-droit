@@ -1,4 +1,5 @@
 const LegalRequest = require('../models/request.model');
+const { analyzeLegalRequest } = require('../services/openai.service');
 
 /**
  * @swagger
@@ -39,7 +40,26 @@ const createRequest = async (req, res) => {
       title,
       description,
       category: category || 'general',
+      status: 'pending',
     });
+
+    // Initiate AI analysis immediately upon submission
+    try {
+      const aiResponseText = await analyzeLegalRequest({
+        title,
+        description,
+        category: category || 'general',
+      });
+
+      if (aiResponseText) {
+        request.aiResponse = aiResponseText;
+        request.status = 'resolved';
+        await request.save();
+      }
+    } catch (aiErr) {
+      console.error("Erreur lors de l'analyse IA de la demande:", aiErr.message);
+      // Fallback or keep status as 'pending' without crashing
+    }
 
     return res.status(201).json({
       success: true,

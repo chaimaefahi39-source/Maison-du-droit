@@ -1,5 +1,4 @@
 const sequelize = require('../config/database');
-const { generateEmbedding } = require('./openai.service');
 
 /**
  * Perform a semantic (vector similarity) search against legal_resources.
@@ -8,7 +7,14 @@ const { generateEmbedding } = require('./openai.service');
  */
 async function searchSimilarDocuments(query, topK = 5, category = null) {
   try {
-    const queryEmbedding = await generateEmbedding(query);
+    let queryEmbedding = null;
+    try {
+      const { generateEmbedding } = require('./openai.service');
+      if (typeof generateEmbedding === 'function') {
+        queryEmbedding = await generateEmbedding(query);
+      }
+    } catch (e) {}
+
     if (!queryEmbedding || !Array.isArray(queryEmbedding)) {
       return fallbackTextSearch(query, topK, category);
     }
