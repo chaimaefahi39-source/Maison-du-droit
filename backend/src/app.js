@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth.routes');
 const requestRoutes = require('./routes/request.routes');
 const resourceRoutes = require('./routes/resource.routes');
 const aiRoutes = require('./routes/ai.routes');
+const chatRoutes = require('./routes/chat.routes');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/chat', chatRoutes);
 
 // ─── Health Check ───────────────────────────────────────────────
 app.get('/', (req, res) => {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getChatHistory, clearChatHistory, streamChat, type ChatMsg } from '../services/api';
+import { getChatHistory, clearChatHistory, deleteChatMessage, streamChat, type ChatMsg } from '../services/api';
 
 type ChatState = {
   messages: ChatMsg[];
@@ -9,8 +9,9 @@ type ChatState = {
 
   // Actions
   loadHistory: () => Promise<void>;
-  sendMessage: (text: string) => void;
+  sendMessage: (text: string, language?: string) => void;
   clearHistory: () => Promise<void>;
+  deleteMessage: (id?: number, index?: number) => Promise<void>;
   stopStreaming: () => void;
 };
 
@@ -30,7 +31,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendMessage: (text: string) => {
+  sendMessage: (text: string, language: string = 'fr') => {
     const userMsg: ChatMsg = { role: 'user', content: text };
 
     set((state) => ({
@@ -60,6 +61,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // onDone
       () => {
         set({ isStreaming: false, abortFn: null });
+        get().loadHistory();
       },
       // onError
       (error: string) => {
@@ -71,7 +73,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
           return { messages: msgs, isStreaming: false, abortFn: null };
         });
-      }
+      },
+      language
     );
 
     set({ abortFn: abort });
@@ -83,6 +86,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ messages: [] });
     } catch {
       // Ignore
+    }
+  },
+
+  deleteMessage: async (id?: number, index?: number) => {
+    if (id) {
+      try {
+        await deleteChatMessage(id);
+      } catch (e) {
+        console.warn('Failed to delete message from DB:', e);
+      }
+      set((state) => ({
+        messages: state.messages.filter((m) => m.id !== id),
+      }));
+    } else if (typeof index === 'number') {
+      set((state) => ({
+        messages: state.messages.filter((_, i) => i !== index),
+      }));
     }
   },
 

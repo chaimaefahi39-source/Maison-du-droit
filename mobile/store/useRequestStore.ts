@@ -1,12 +1,13 @@
 import { create } from 'zustand';
-import { getUserRequests, createLegalRequest, type LegalRequest } from '../services/api';
+import { getUserRequests, createLegalRequest, deleteLegalRequest, type LegalRequest } from '../services/api';
 
 type RequestState = {
   requests: LegalRequest[];
   isLoading: boolean;
 
   loadRequests: (status?: string) => Promise<void>;
-  createRequest: (data: { title: string; description: string; category?: string }) => Promise<LegalRequest>;
+  createRequest: (data: { title: string; description: string; category?: string; language?: string }) => Promise<LegalRequest>;
+  deleteRequest: (id: number) => Promise<void>;
 };
 
 export const useRequestStore = create<RequestState>((set) => ({
@@ -29,5 +30,12 @@ export const useRequestStore = create<RequestState>((set) => ({
       requests: [result.request, ...state.requests],
     }));
     return result.request;
+  },
+
+  deleteRequest: async (id: number) => {
+    await deleteLegalRequest(id);
+    set((state) => ({
+      requests: state.requests.filter((r) => r.id !== id),
+    }));
   },
 }));

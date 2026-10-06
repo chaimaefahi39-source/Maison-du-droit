@@ -126,7 +126,7 @@ export type LegalRequest = {
   updatedAt: string;
 };
 
-export async function createLegalRequest(data: { title: string; description: string; category?: string }): Promise<{ success: boolean; request: LegalRequest }> {
+export async function createLegalRequest(data: { title: string; description: string; category?: string; language?: string }): Promise<{ success: boolean; request: LegalRequest }> {
   return api.post('/requests', data);
 }
 
@@ -137,6 +137,10 @@ export async function getUserRequests(status?: string): Promise<{ success: boole
 
 export async function getRequestById(id: number): Promise<{ success: boolean; request: LegalRequest }> {
   return api.get(`/requests/${id}`);
+}
+
+export async function deleteLegalRequest(id: number): Promise<{ success: boolean; message: string }> {
+  return api.delete(`/requests/${id}`);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -182,6 +186,10 @@ export async function getChatHistory(): Promise<{ success: boolean; messages: Ch
 
 export async function clearChatHistory(): Promise<{ success: boolean }> {
   return api.delete('/ai/history');
+}
+
+export async function deleteChatMessage(id: number): Promise<{ success: boolean; message: string }> {
+  return api.delete(`/ai/messages/${id}`);
 }
 
 /**
@@ -231,6 +239,7 @@ export function streamChat(
   onChunk: (text: string) => void,
   onDone: () => void,
   onError: (error: string) => void,
+  language: string = 'fr'
 ): () => void {
 
   // ─── 1. Web Strategy: fetch + ReadableStream ──────────────────
@@ -243,6 +252,7 @@ export function streamChat(
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
+          'Accept-Language': language,
         };
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
@@ -251,7 +261,7 @@ export function streamChat(
         const response = await fetch(`${BASE_URL}/ai/chat`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, language }),
           signal: controller.signal,
         });
 
@@ -331,6 +341,7 @@ export function streamChat(
       xhr.open('POST', `${BASE_URL}/ai/chat`);
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Accept', 'text/event-stream');
+      xhr.setRequestHeader('Accept-Language', language);
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       }
@@ -428,7 +439,7 @@ export function streamChat(
         }
       };
 
-      xhr.send(JSON.stringify({ message }));
+      xhr.send(JSON.stringify({ message, language }));
 
     } catch (err: any) {
       if (!isDoneTriggered) {

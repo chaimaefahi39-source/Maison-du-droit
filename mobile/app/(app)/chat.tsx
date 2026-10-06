@@ -1,24 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { colors } from '../../theme/colors';
 import { useChatStore } from '../../store/useChatStore';
-
-const SUGGESTIONS = [
-  "Quels sont mes droits en tant que locataire ?",
-  "Comment contester un licenciement ?",
-  "Quelles sont les étapes d'un divorce ?",
-  "Comment créer une entreprise ?",
-];
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ChatScreen() {
   const params = useLocalSearchParams<{ initialMessage?: string }>();
   const initialSentRef = useRef(false);
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
-  const { messages, isStreaming, isLoading, sendMessage, loadHistory, clearHistory } = useChatStore();
+  const { messages, isStreaming, isLoading, sendMessage, loadHistory, clearHistory, deleteMessage } = useChatStore();
+  const { language, t, textAlign, flexDirection } = useLanguage();
+
+  const SUGGESTIONS = [
+    t('sugTenant'),
+    t('sugDismissal'),
+    t('sugDivorce'),
+    t('sugBusiness'),
+  ];
 
   useEffect(() => {
     loadHistory();
@@ -27,9 +29,9 @@ export default function ChatScreen() {
   useEffect(() => {
     if (params.initialMessage && !initialSentRef.current && !isStreaming) {
       initialSentRef.current = true;
-      sendMessage(params.initialMessage);
+      sendMessage(params.initialMessage, language);
     }
-  }, [params.initialMessage, isStreaming]);
+  }, [params.initialMessage, isStreaming, language]);
 
   useEffect(() => {
     // Auto-scroll to bottom on new messages
@@ -44,12 +46,37 @@ export default function ChatScreen() {
     const text = inputText.trim();
     if (!text || isStreaming) return;
     setInputText('');
-    sendMessage(text);
+    sendMessage(text, language);
   };
 
   const handleSuggestion = (text: string) => {
     if (isStreaming) return;
-    sendMessage(text);
+    sendMessage(text, language);
+  };
+
+  const handleDeleteSingleMessage = (item: any, index: number) => {
+    const executeDelete = async () => {
+      try {
+        await deleteMessage(item.id, index);
+      } catch (err: any) {
+        Alert.alert(t('error'), err.message || t('error'));
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('confirmDeleteMsg'))) {
+        executeDelete();
+      }
+    } else {
+      Alert.alert(
+        t('deleteMessage'),
+        t('confirmDeleteMsg'),
+        [
+          { text: t('cancel'), style: 'cancel' },
+          { text: t('delete'), style: 'destructive', onPress: executeDelete },
+        ]
+      );
+    }
   };
 
   const renderMessage = ({ item, index }: { item: any; index: number }) => {
@@ -61,20 +88,32 @@ export default function ChatScreen() {
             <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
           </View>
         )}
-        <View style={[
-          styles.messageBubble,
-          isUser ? styles.userBubble : styles.assistantBubble,
-        ]}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onLongPress={() => handleDeleteSingleMessage(item, index)}
+          style={[
+            styles.messageBubble,
+            isUser ? styles.userBubble : styles.assistantBubble,
+          ]}
+        >
           <Text style={[
             styles.messageText,
             isUser ? styles.userText : styles.assistantText,
+            { textAlign },
           ]}>
             {item.content}
             {isStreaming && index === messages.length - 1 && !isUser && (
               <Text style={styles.cursor}>▊</Text>
             )}
           </Text>
-        </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.messageDeleteBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => handleDeleteSingleMessage(item, index)}
+        >
+          <Feather name="trash-2" size={13} color={colors.textMuted} />
+        </TouchableOpacity>
       </View>
     );
   };
@@ -84,21 +123,21 @@ export default function ChatScreen() {
       <View style={styles.emptyIconBox}>
         <Ionicons name="shield-checkmark" size={40} color={colors.primary} />
       </View>
-      <Text style={styles.emptyTitle}>Assistant Juridique</Text>
+      <Text style={styles.emptyTitle}>{t('assistantTitle')}</Text>
       <Text style={styles.emptySubtitle}>
-        Posez vos questions juridiques et obtenez des réponses basées sur des sources fiables.
+        {t('assistantSubtitle')}
       </Text>
 
-      <Text style={styles.suggestionsTitle}>Suggestions</Text>
+      <Text style={[styles.suggestionsTitle, { textAlign }]}>{t('suggestions')}</Text>
       {SUGGESTIONS.map((suggestion, i) => (
         <TouchableOpacity
           key={i}
-          style={styles.suggestionChip}
+          style={[styles.suggestionChip, { flexDirection }]}
           onPress={() => handleSuggestion(suggestion)}
           activeOpacity={0.7}
         >
           <Feather name="message-circle" size={14} color={colors.primary} />
-          <Text style={styles.suggestionText}>{suggestion}</Text>
+          <Text style={[styles.suggestionText, { textAlign }]}>{suggestion}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -107,13 +146,13 @@ export default function ChatScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { flexDirection }]}>
         <View style={styles.headerLeft}>
           <Ionicons name="shield-checkmark" size={22} color={colors.primary} />
           <View>
-            <Text style={styles.headerTitle}>Assistant Juridique</Text>
+            <Text style={styles.headerTitle}>{t('assistantTitle')}</Text>
             <Text style={styles.headerSubtitle}>
-              {isStreaming ? 'En train de répondre...' : 'En ligne'}
+              {isStreaming ? t('typing') : t('online')}
             </Text>
           </View>
         </View>
@@ -149,12 +188,12 @@ export default function ChatScreen() {
 
         {/* Input */}
         <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
+          <View style={[styles.inputWrapper, { flexDirection }]}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { textAlign }]}
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Posez votre question juridique..."
+              placeholder={t('chatPlaceholder')}
               placeholderTextColor={colors.textMuted}
               multiline
               maxLength={2000}
@@ -168,12 +207,12 @@ export default function ChatScreen() {
               {isStreaming ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : (
-                <Feather name="send" size={18} color="#FFF" />
+                <Feather name={language === 'ar' ? 'send' : 'send'} style={language === 'ar' ? { transform: [{ rotate: '180deg' }] } : undefined} size={18} color="#FFF" />
               )}
             </TouchableOpacity>
           </View>
           <Text style={styles.disclaimer}>
-            Les réponses de l'IA ne remplacent pas un avis juridique professionnel.
+            {t('disclaimer')}
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -184,7 +223,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: colors.borderLight,
     backgroundColor: colors.surface,
@@ -219,6 +258,7 @@ const styles = StyleSheet.create({
   messageText: { fontSize: 14, lineHeight: 21 },
   userText: { color: colors.userBubbleText },
   assistantText: { color: colors.assistantBubbleText },
+  messageDeleteBtn: { padding: 4, opacity: 0.5, alignSelf: 'center' },
   cursor: { color: colors.primary, fontSize: 14 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   emptyIconBox: {
@@ -228,9 +268,9 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 8 },
   emptySubtitle: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 19, marginBottom: 28 },
-  suggestionsTitle: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, letterSpacing: 1, marginBottom: 12, alignSelf: 'flex-start' },
+  suggestionsTitle: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, letterSpacing: 1, marginBottom: 12, alignSelf: 'stretch' },
   suggestionChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    alignItems: 'center', gap: 10,
     width: '100%', backgroundColor: colors.surface, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8,
     borderWidth: 1, borderColor: colors.border,
@@ -238,7 +278,7 @@ const styles = StyleSheet.create({
   suggestionText: { fontSize: 13, color: colors.text, flex: 1 },
   inputContainer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderLight },
   inputWrapper: {
-    flexDirection: 'row', alignItems: 'flex-end',
+    alignItems: 'flex-end',
     backgroundColor: colors.surfaceAlt, borderRadius: 24,
     paddingLeft: 18, paddingRight: 6, paddingVertical: 6,
     borderWidth: 1, borderColor: colors.border,
@@ -251,3 +291,4 @@ const styles = StyleSheet.create({
   sendButtonDisabled: { backgroundColor: colors.iconDisabled },
   disclaimer: { fontSize: 9, color: colors.textMuted, textAlign: 'center', marginTop: 6, letterSpacing: 0.2 },
 });
+

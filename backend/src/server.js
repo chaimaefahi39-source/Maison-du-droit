@@ -3,6 +3,8 @@ const app = require('./app');
 const db = require('./models');
 const { Client } = require('pg');
 
+const { seedResources } = require('./seed');
+
 const PORT = process.env.PORT || 5001;
 
 async function startServer() {
@@ -30,6 +32,9 @@ async function startServer() {
   try {
     await db.sequelize.sync({ alter: true });
     console.log('Database connected and synced successfully.');
+
+    // Seed resources if missing
+    await seedResources();
 
     // Set up pgvector extension and embedding column
     await db.setupPgVector();

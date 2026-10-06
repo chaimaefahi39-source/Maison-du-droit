@@ -43,7 +43,8 @@ async function getCleanChatHistory(userId, currentMessage) {
 
 const chat = async (req, res) => {
   const userId = req.user?.id;
-  const { message } = req.body || {};
+  const { message, language } = req.body || {};
+  const activeLanguage = language || req.headers['accept-language'] || 'fr';
 
   if (!message || !message.trim()) {
     return res.status(400).json({ success: false, message: "Le message est obligatoire" });
@@ -68,7 +69,7 @@ const chat = async (req, res) => {
       }
 
       const chatHistory = await getCleanChatHistory(userId, message);
-      const stream = createStreamingChat(chatHistory, contextDocuments);
+      const stream = createStreamingChat(chatHistory, contextDocuments, activeLanguage);
 
       let fullResponse = '';
       for await (const chunk of stream) {
@@ -119,7 +120,7 @@ const chat = async (req, res) => {
     }
 
     const chatHistory = await getCleanChatHistory(userId, message);
-    const stream = createStreamingChat(chatHistory, contextDocuments);
+    const stream = createStreamingChat(chatHistory, contextDocuments, activeLanguage);
 
     for await (const chunk of stream) {
       const content = chunk?.choices?.[0]?.delta?.content;
@@ -201,4 +202,39 @@ const clearHistory = async (req, res) => {
   }
 };
 
-module.exports = { chat, getHistory, clearHistory };
+const deleteMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Non autorisé" });
+    }
+
+    const message = await ChatMessage.findOne({
+      where: { id, userId },
+    });
+
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: "Message non trouvé",
+      });
+    }
+
+    await message.destroy();
+
+    return res.status(200).json({
+      success: true,
+      message: "Message supprimé avec succès",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Erreur lors de la suppression du message",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { chat, getHistory, clearHistory, deleteMessage };

@@ -16,27 +16,42 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '../../theme/colors';
 import { getResources, LegalResource } from '../../services/api';
-
-const CATEGORIES = [
-  { label: 'Toutes', value: '' },
-  { label: 'Général', value: 'general' },
-  { label: 'Travail', value: 'travail' },
-  { label: 'Logement', value: 'logement' },
-  { label: 'Famille', value: 'famille' },
-  { label: 'Commerce', value: 'commerce' },
-  { label: 'Pénal', value: 'penal' },
-  { label: 'Administratif', value: 'administratif' },
-];
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ResourcesScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ category?: string }>();
+  const { language, t, textAlign, flexDirection } = useLanguage();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>(params.category || '');
   const [resources, setResources] = useState<LegalResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedResource, setSelectedResource] = useState<LegalResource | null>(null);
+
+  const CATEGORIES = [
+    { label: t('filterAll'), value: '' },
+    { label: t('catGeneral'), value: 'general' },
+    { label: t('catLabor'), value: 'travail' },
+    { label: t('catHousing'), value: 'logement' },
+    { label: t('catFamily'), value: 'famille' },
+    { label: t('catCommerce'), value: 'commerce' },
+    { label: t('catPenal'), value: 'penal' },
+    { label: t('catAdmin'), value: 'administratif' },
+  ];
+
+  const getCategoryLabel = (catKey: string) => {
+    switch ((catKey || '').toLowerCase()) {
+      case 'general': return t('catGeneral');
+      case 'travail': case 'labor': return t('catLabor');
+      case 'logement': case 'housing': return t('catHousing');
+      case 'famille': case 'family': return t('catFamily');
+      case 'commerce': case 'commercial': return t('catCommerce');
+      case 'penal': case 'penal law': return t('catPenal');
+      case 'administratif': case 'admin': return t('catAdmin');
+      default: return catKey;
+    }
+  };
 
   useEffect(() => {
     if (params.category !== undefined) {
@@ -51,8 +66,12 @@ export default function ResourcesScreen() {
         q: searchQuery.trim() || undefined,
         category: selectedCategory || undefined,
       });
-      if (res.success) {
-        setResources(res.resources || []);
+      if (res.success && res.resources) {
+        const uniqueList = res.resources.filter(
+          (item: LegalResource, index: number, self: LegalResource[]) =>
+            index === self.findIndex((r) => r.title.trim() === item.title.trim())
+        );
+        setResources(uniqueList);
       }
     } catch {
       // Keep existing list on error
@@ -82,18 +101,18 @@ export default function ResourcesScreen() {
       activeOpacity={0.8}
       onPress={() => setSelectedResource(item)}
     >
-      <View style={styles.cardHeader}>
+      <View style={[styles.cardHeader, { flexDirection }]}>
         <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{item.category}</Text>
+          <Text style={styles.categoryText}>{getCategoryLabel(item.category)}</Text>
         </View>
-        <Feather name="chevron-right" size={18} color={colors.textMuted} />
+        <Feather name={language === 'ar' ? 'chevron-left' : 'chevron-right'} size={18} color={colors.textMuted} />
       </View>
-      <Text style={styles.cardTitle}>{item.title}</Text>
-      <Text style={styles.cardPreview} numberOfLines={3}>
+      <Text style={[styles.cardTitle, { textAlign }]}>{item.title}</Text>
+      <Text style={[styles.cardPreview, { textAlign }]} numberOfLines={3}>
         {item.content}
       </Text>
       <View style={styles.cardFooter}>
-        <Text style={styles.cardLinkText}>Consulter les détails →</Text>
+        <Text style={[styles.cardLinkText, { textAlign }]}>{t('seeDetails')}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -102,17 +121,17 @@ export default function ResourcesScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ressources Juridiques</Text>
-        <Text style={styles.headerSubtitle}>Explorez les articles et textes de loi</Text>
+        <Text style={[styles.headerTitle, { textAlign }]}>{t('legalResources')}</Text>
+        <Text style={[styles.headerSubtitle, { textAlign }]}>{t('resourcesSubtitle')}</Text>
       </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
+        <View style={[styles.searchBox, { flexDirection }]}>
           <Feather name="search" size={18} color={colors.iconDisabled} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher un article, mot-clé..."
+            style={[styles.searchInput, { textAlign }]}
+            placeholder={t('searchPlaceholder')}
             placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -126,7 +145,12 @@ export default function ResourcesScreen() {
       </View>
 
       {/* Category Chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={[styles.categoryRow, { flexDirection }]}
+      >
         {CATEGORIES.map((cat) => {
           const isActive = selectedCategory === cat.value;
           return (
@@ -134,6 +158,7 @@ export default function ResourcesScreen() {
               key={cat.value}
               style={[styles.chip, isActive && styles.chipActive]}
               onPress={() => setSelectedCategory(cat.value)}
+              activeOpacity={0.7}
             >
               <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{cat.label}</Text>
             </TouchableOpacity>
@@ -156,8 +181,8 @@ export default function ResourcesScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Feather name="book-open" size={48} color={colors.border} />
-              <Text style={styles.emptyTitle}>Aucune ressource trouvée</Text>
-              <Text style={styles.emptySubtitle}>Essayez de modifier votre recherche ou la catégorie</Text>
+              <Text style={styles.emptyTitle}>{t('noResourcesFound')}</Text>
+              <Text style={styles.emptySubtitle}>{t('tryModifyingSearch')}</Text>
             </View>
           }
         />
@@ -169,9 +194,9 @@ export default function ResourcesScreen() {
           <View style={styles.modalContent}>
             {selectedResource && (
               <>
-                <View style={styles.modalHeader}>
+                <View style={[styles.modalHeader, { flexDirection }]}>
                   <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{selectedResource.category}</Text>
+                    <Text style={styles.categoryText}>{getCategoryLabel(selectedResource.category)}</Text>
                   </View>
                   <TouchableOpacity onPress={() => setSelectedResource(null)}>
                     <Feather name="x" size={24} color={colors.text} />
@@ -179,29 +204,29 @@ export default function ResourcesScreen() {
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
-                  <Text style={styles.modalTitle}>{selectedResource.title}</Text>
+                  <Text style={[styles.modalTitle, { textAlign }]}>{selectedResource.title}</Text>
 
                   <View style={styles.contentDivider} />
 
-                  <Text style={styles.modalBodyText}>{selectedResource.content}</Text>
+                  <Text style={[styles.modalBodyText, { textAlign }]}>{selectedResource.content}</Text>
 
                   {selectedResource.url && (
                     <TouchableOpacity
-                      style={styles.urlButton}
+                      style={[styles.urlButton, { flexDirection }]}
                       onPress={() => Linking.openURL(selectedResource.url!)}
                     >
                       <Feather name="external-link" size={16} color={colors.primary} />
-                      <Text style={styles.urlButtonText}>Voir la source officielle (Service Public)</Text>
+                      <Text style={styles.urlButtonText}>{t('viewOfficialSource')}</Text>
                     </TouchableOpacity>
                   )}
                 </ScrollView>
 
                 <TouchableOpacity
-                  style={styles.askButton}
+                  style={[styles.askButton, { flexDirection }]}
                   onPress={() => handleAskAboutResource(selectedResource)}
                 >
                   <Ionicons name="chatbubbles-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.askButtonText}>Poser une question sur cet article</Text>
+                  <Text style={styles.askButtonText}>{t('askAboutArticle')}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -214,12 +239,11 @@ export default function ResourcesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
   headerTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
   headerSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  searchContainer: { paddingHorizontal: 20, marginVertical: 12 },
+  searchContainer: { paddingHorizontal: 20, marginTop: 8, marginBottom: 12 },
   searchBox: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: 14,
@@ -228,20 +252,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  searchIcon: { marginRight: 10 },
+  searchIcon: { marginHorizontal: 6 },
   searchInput: { flex: 1, fontSize: 14, color: colors.text },
-  categoryRow: { paddingHorizontal: 20, gap: 8, marginBottom: 16 },
+  categoryRow: {
+    paddingHorizontal: 20,
+    paddingVertical: 4,
+    gap: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  chipTextActive: { color: '#FFF' },
+  chipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  chipTextActive: { color: '#FFF', fontWeight: '700' },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingHorizontal: 20, paddingBottom: 24 },
   card: {
@@ -252,7 +285,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  cardHeader: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   categoryBadge: {
     backgroundColor: colors.primary + '18',
     paddingHorizontal: 10,
@@ -279,13 +312,12 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
     maxHeight: '85%',
   },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalHeader: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalScroll: { marginBottom: 16 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 12 },
   contentDivider: { height: 1, backgroundColor: colors.borderLight, marginBottom: 16 },
   modalBodyText: { fontSize: 14, color: colors.textSecondary, lineHeight: 22, marginBottom: 20 },
   urlButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     padding: 12,
@@ -297,7 +329,6 @@ const styles = StyleSheet.create({
   },
   urlButtonText: { fontSize: 13, fontWeight: '600', color: colors.primary },
   askButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
@@ -311,3 +342,4 @@ const styles = StyleSheet.create({
   },
   askButtonText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
 });
+

@@ -6,30 +6,16 @@ import { useRouter } from 'expo-router';
 import { colors } from '../../theme/colors';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useRequestStore } from '../../store/useRequestStore';
+import { useLanguage } from '../../context/LanguageContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 56) / 2;
-
-const QUICK_ACTIONS = [
-  { icon: 'message-circle' as const, label: 'Poser une question', route: '/(app)/chat', color: colors.primary },
-  { icon: 'file-plus' as const, label: 'Nouvelle demande', route: '/(app)/requests', color: colors.accent },
-  { icon: 'book-open' as const, label: 'Ressources', route: '/(app)/resources', color: colors.primary },
-  { icon: 'shield' as const, label: 'Mes droits', route: '/(app)/resources', color: colors.success },
-];
-
-const CATEGORIES = [
-  { icon: '⚖️', label: 'Travail', value: 'travail' },
-  { icon: '🏠', label: 'Logement', value: 'logement' },
-  { icon: '👨‍👩‍👧', label: 'Famille', value: 'famille' },
-  { icon: '💼', label: 'Commerce', value: 'commerce' },
-  { icon: '🔒', label: 'Pénal', value: 'penal' },
-  { icon: '🏛️', label: 'Administratif', value: 'administratif' },
-];
 
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { requests, loadRequests } = useRequestStore();
+  const { language, isRTL, t, textAlign, flexDirection } = useLanguage();
 
   useEffect(() => {
     loadRequests();
@@ -40,23 +26,53 @@ export default function HomeScreen() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Bonjour';
-    if (hour < 18) return 'Bon après-midi';
-    return 'Bonsoir';
+    if (hour < 12) return t('greetingMorning');
+    if (hour < 18) return t('greetingAfternoon');
+    return t('greetingEvening');
+  };
+
+  const QUICK_ACTIONS = [
+    { icon: 'message-circle' as const, label: t('askQuestion'), route: '/(app)/chat', color: colors.primary },
+    { icon: 'file-plus' as const, label: t('newRequest'), route: '/(app)/requests', color: colors.accent },
+    { icon: 'book-open' as const, label: t('resources'), route: '/(app)/resources', color: colors.primary },
+    { icon: 'shield' as const, label: t('myRights'), route: '/(app)/resources', color: colors.success },
+  ];
+
+  const CATEGORIES = [
+    { icon: '⚖️', label: t('catLabor'), value: 'travail' },
+    { icon: '🏠', label: t('catHousing'), value: 'logement' },
+    { icon: '👨‍👩‍👧', label: t('catFamily'), value: 'famille' },
+    { icon: '💼', label: t('catCommerce'), value: 'commerce' },
+    { icon: '🔒', label: t('catPenal'), value: 'penal' },
+    { icon: '🏛️', label: t('catAdmin'), value: 'administratif' },
+  ];
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return t('statusPending');
+      case 'processing': return t('statusProcessing');
+      case 'resolved': return t('statusResolved');
+      case 'closed': return t('statusClosed');
+      default: return status;
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.userName}>{user?.fullName || 'Utilisateur'}</Text>
+        <View style={[styles.header, { flexDirection }]}>
+          <View style={[styles.headerGreetingBlock, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+            <Text style={[styles.greeting, { textAlign }]}>{getGreeting()},</Text>
+            <Text style={[styles.userName, { textAlign }]} numberOfLines={1}>
+              {user?.fullName || t('userFallback')}
+            </Text>
           </View>
+
           <TouchableOpacity
             style={styles.profileButton}
             onPress={() => router.push('/(app)/profile' as any)}
+            activeOpacity={0.8}
           >
             <Feather name="user" size={20} color={colors.primary} />
           </TouchableOpacity>
@@ -72,27 +88,27 @@ export default function HomeScreen() {
             <View style={styles.heroIconBox}>
               <Ionicons name="shield-checkmark" size={28} color="#FFF" />
             </View>
-            <Text style={styles.heroTitle}>Assistant Juridique IA</Text>
-            <Text style={styles.heroSubtitle}>
-              Posez vos questions juridiques et recevez des réponses personnalisées instantanément
+            <Text style={[styles.heroTitle, { textAlign }]}>{t('heroTitle')}</Text>
+            <Text style={[styles.heroSubtitle, { textAlign }]}>
+              {t('heroSubtitle')}
             </Text>
-            <View style={styles.heroButton}>
-              <Text style={styles.heroButtonText}>Commencer une conversation</Text>
-              <Feather name="arrow-right" size={16} color={colors.accent} />
+            <View style={[styles.heroButton, { flexDirection }]}>
+              <Text style={styles.heroButtonText}>{t('heroButton')}</Text>
+              <Feather name={language === 'ar' ? 'arrow-left' : 'arrow-right'} size={16} color={colors.accent} />
             </View>
           </View>
           <View style={styles.heroDecor} />
         </TouchableOpacity>
 
         {/* Stats Row */}
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, { flexDirection }]}>
           <TouchableOpacity
             style={styles.statCard}
             onPress={() => router.push('/(app)/requests' as any)}
             activeOpacity={0.7}
           >
             <Text style={styles.statNumber}>{requests.length}</Text>
-            <Text style={styles.statLabel}>Total demandes</Text>
+            <Text style={styles.statLabel}>{t('statTotal')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.statCard, { backgroundColor: colors.surfaceAlt }]}
@@ -100,7 +116,7 @@ export default function HomeScreen() {
             activeOpacity={0.7}
           >
             <Text style={[styles.statNumber, { color: colors.accent }]}>{pendingCount}</Text>
-            <Text style={styles.statLabel}>En attente</Text>
+            <Text style={styles.statLabel}>{t('statPending')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.statCard, { backgroundColor: colors.surfaceAlt }]}
@@ -108,13 +124,13 @@ export default function HomeScreen() {
             activeOpacity={0.7}
           >
             <Text style={[styles.statNumber, { color: colors.success }]}>{resolvedCount}</Text>
-            <Text style={styles.statLabel}>Résolues</Text>
+            <Text style={styles.statLabel}>{t('statResolved')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Actions rapides</Text>
+        <View style={[styles.sectionHeader, { flexDirection }]}>
+          <Text style={styles.sectionTitle}>{t('quickActions')}</Text>
         </View>
         <View style={styles.actionsGrid}>
           {QUICK_ACTIONS.map((action, index) => (
@@ -127,16 +143,16 @@ export default function HomeScreen() {
               <View style={[styles.actionIconBox, { backgroundColor: action.color + '12' }]}>
                 <Feather name={action.icon} size={20} color={action.color} />
               </View>
-              <Text style={styles.actionLabel}>{action.label}</Text>
+              <Text style={[styles.actionLabel, { textAlign }]}>{action.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Categories */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Domaines juridiques</Text>
+        <View style={[styles.sectionHeader, { flexDirection }]}>
+          <Text style={styles.sectionTitle}>{t('legalDomains')}</Text>
           <TouchableOpacity onPress={() => router.push('/(app)/resources' as any)}>
-            <Text style={styles.seeAll}>Voir tout →</Text>
+            <Text style={styles.seeAll}>{t('seeAll')}</Text>
           </TouchableOpacity>
         </View>
         <ScrollView
@@ -160,10 +176,10 @@ export default function HomeScreen() {
         {/* Recent Requests */}
         {requests.length > 0 && (
           <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Demandes récentes</Text>
+            <View style={[styles.sectionHeader, { flexDirection }]}>
+              <Text style={styles.sectionTitle}>{t('recentRequests')}</Text>
               <TouchableOpacity onPress={() => router.push('/(app)/requests' as any)}>
-                <Text style={styles.seeAll}>Voir tout →</Text>
+                <Text style={styles.seeAll}>{t('seeAll')}</Text>
               </TouchableOpacity>
             </View>
             {requests.slice(0, 3).map((req) => (
@@ -173,15 +189,15 @@ export default function HomeScreen() {
                 activeOpacity={0.8}
                 onPress={() => router.push('/(app)/requests' as any)}
               >
-                <View style={styles.requestHeader}>
-                  <Text style={styles.requestTitle} numberOfLines={1}>{req.title}</Text>
+                <View style={[styles.requestHeader, { flexDirection }]}>
+                  <Text style={[styles.requestTitle, { textAlign }]} numberOfLines={1}>{req.title}</Text>
                   <View style={[styles.statusBadge, { backgroundColor: getStatusColor(req.status) + '20' }]}>
                     <Text style={[styles.statusText, { color: getStatusColor(req.status) }]}>
                       {getStatusLabel(req.status)}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.requestCategory}>{req.category} • {new Date(req.createdAt).toLocaleDateString('fr-FR')}</Text>
+                <Text style={[styles.requestCategory, { textAlign }]}>{req.category} • {new Date(req.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : language === 'en' ? 'en-US' : 'fr-FR')}</Text>
               </TouchableOpacity>
             ))}
           </>
@@ -203,24 +219,15 @@ function getStatusColor(status: string) {
   }
 }
 
-function getStatusLabel(status: string) {
-  switch (status) {
-    case 'pending': return 'En attente';
-    case 'processing': return 'En cours';
-    case 'resolved': return 'Résolue';
-    case 'closed': return 'Fermée';
-    default: return status;
-  }
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16,
+    justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16,
   },
-  greeting: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
-  userName: { fontSize: 22, fontWeight: '700', color: colors.text, marginTop: 2 },
+  headerGreetingBlock: { flex: 1 },
+  greeting: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+  userName: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: 2 },
   profileButton: {
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center',
@@ -240,7 +247,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: { fontSize: 20, fontWeight: '700', color: '#FFF', marginBottom: 8 },
   heroSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 19, marginBottom: 20 },
-  heroButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroButton: { alignItems: 'center', gap: 8 },
   heroButtonText: { fontSize: 14, fontWeight: '600', color: colors.accent },
   heroDecor: {
     position: 'absolute', right: -30, top: -30,
@@ -248,15 +255,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(200,164,92,0.1)',
   },
   statsRow: {
-    flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 24,
+    paddingHorizontal: 20, gap: 10, marginBottom: 24,
   },
   statCard: {
     flex: 1, backgroundColor: colors.surfaceAlt, borderRadius: 14, padding: 14, alignItems: 'center',
   },
   statNumber: { fontSize: 22, fontWeight: '800', color: colors.primary },
-  statLabel: { fontSize: 10, fontWeight: '600', color: colors.textSecondary, marginTop: 4, letterSpacing: 0.3 },
+  statLabel: { fontSize: 10, fontWeight: '600', color: colors.textSecondary, marginTop: 4, letterSpacing: 0.3, textAlign: 'center' },
   sectionHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, marginBottom: 12,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
@@ -285,9 +292,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20, backgroundColor: colors.surface, borderRadius: 14,
     padding: 16, marginBottom: 10, borderWidth: 1, borderColor: colors.border,
   },
-  requestHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  requestHeader: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   requestTitle: { fontSize: 14, fontWeight: '600', color: colors.text, flex: 1, marginRight: 8 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   statusText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   requestCategory: { fontSize: 12, color: colors.textSecondary },
 });
+

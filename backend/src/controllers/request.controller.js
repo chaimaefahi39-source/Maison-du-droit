@@ -25,7 +25,8 @@ const { analyzeLegalRequest } = require('../services/openai.service');
  */
 const createRequest = async (req, res) => {
   try {
-    const { title, description, category } = req.body;
+    const { title, description, category, language } = req.body;
+    const activeLanguage = language || req.headers['accept-language'] || 'fr';
     const userId = req.user.id;
 
     if (!title || !description) {
@@ -43,27 +44,27 @@ const createRequest = async (req, res) => {
       status: 'pending',
     });
 
-    // Initiate AI analysis immediately upon submission
+    // Initiate and await AI legal analysis immediately upon submission
     try {
       const aiResponseText = await analyzeLegalRequest({
         title,
         description,
         category: category || 'general',
+        language: activeLanguage,
       });
 
-      if (aiResponseText) {
-        request.aiResponse = aiResponseText;
+      if (aiResponseText && aiResponseText.trim()) {
+        request.aiResponse = aiResponseText.trim();
         request.status = 'resolved';
         await request.save();
       }
     } catch (aiErr) {
       console.error("Erreur lors de l'analyse IA de la demande:", aiErr.message);
-      // Fallback or keep status as 'pending' without crashing
     }
 
     return res.status(201).json({
       success: true,
-      message: "Demande créée avec succès",
+      message: "Demande créée et analysée avec succès",
       request,
     });
   } catch (error) {
@@ -201,4 +202,53 @@ const updateRequest = async (req, res) => {
   }
 };
 
-module.exports = { createRequest, getUserRequests, getRequestById, updateRequest };
+/**
+ * @swagger
+ * /api/requests/{id}:
+ *   delete:
+ *     summary: Delete a legal request by ID
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Request deleted }
+ *       404: { description: Request not found }
+ */
+const deleteRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const request = await LegalRequest.findOne({
+      where: { id, userId },
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Demande non trouvée",
+      });
+    }
+
+    await request.destroy();
+
+    return res.status(200).json({
+      success: true,
+      message: "Demande supprimée avec succès",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Erreur lors de la suppression de la demande",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { createRequest, getUserRequests, getRequestById, updateRequest, deleteRequest };
+
