@@ -65,11 +65,12 @@ export default function ResourcesScreen() {
       const res = await getResources({
         q: searchQuery.trim() || undefined,
         category: selectedCategory || undefined,
+        lang: language,
       });
       if (res.success && res.resources) {
         const uniqueList = res.resources.filter(
           (item: LegalResource, index: number, self: LegalResource[]) =>
-            index === self.findIndex((r) => r.title.trim() === item.title.trim())
+            index === self.findIndex((r) => r.id === item.id || r.title.trim() === item.title.trim())
         );
         setResources(uniqueList);
       }
@@ -85,7 +86,7 @@ export default function ResourcesScreen() {
       fetchResources();
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, language]);
 
   const handleAskAboutResource = (resource: LegalResource) => {
     setSelectedResource(null);

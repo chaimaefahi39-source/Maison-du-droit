@@ -25,6 +25,22 @@ const LegalResource = sequelize.define('LegalResource', {
     type: DataTypes.TEXT,
     allowNull: false,
   },
+  titleFr: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  contentFr: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  titleEn: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  contentEn: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   url: {
     type: DataTypes.STRING,
     allowNull: true,

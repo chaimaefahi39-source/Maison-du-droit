@@ -157,7 +157,7 @@ export type LegalResource = {
   createdAt: string;
 };
 
-export async function getResources(params?: { q?: string; category?: string; semantic?: string }): Promise<{ success: boolean; resources: LegalResource[] }> {
+export async function getResources(params?: { q?: string; category?: string; semantic?: string; lang?: string }): Promise<{ success: boolean; resources: LegalResource[] }> {
   return api.get('/resources', { params });
 }
 
