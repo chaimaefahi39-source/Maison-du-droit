@@ -214,6 +214,16 @@ const LEGAL_RESOURCES = [
     contentFr: `L'article 184 du Code du Travail fixe la durée normale de travail à 2.288 heures par an ou 44 heures par semaine. L'article 231 accorde au salarié un congé payé de 1,5 jour ouvrable par mois de service effectif après 6 mois d'ancienneté.`,
     contentEn: `Article 184 of the Labor Code sets standard working hours at 2,288 hours per year or 44 hours per week. Article 231 grants employees paid annual leave of 1.5 working days per month of service after 6 months continuous employment.`,
     url: "https://adala.justice.gov.ma"
+  },
+  {
+    title: "مدونة الشغل - التعويض عن الفصل التعسفي والمهلة (المادتان 41 و 53)",
+    titleFr: "Code du Travail - Indemnités de licenciement abusif et préavis (Articles 41 & 53)",
+    titleEn: "Labor Code - Unfair dismissal compensation and notice period (Articles 41 & 53)",
+    category: "travail",
+    content: `تنص المادة 41 و 53 من مدونة الشغل المغربية (القانون 65.99) على استحقاق الأجير المفصول تعسفياً لتعويضات تشمل: التعويض عن الفصل، والتعويض عن الضرر (شهر ونصف عن كل سنة عمل في حدود 36 شهراً)، إضافة إلى التعويض عن أجل الإخطار (الإنذار).`,
+    contentFr: `Les articles 41 et 53 de la loi 65.99 prévoient les réparations dues au salarié en cas de licenciement abusif : indemnité légale de licenciement, dommages-intérêts (1,5 mois de salaire par an plafonné à 36 mois) et indemnité de préavis.`,
+    contentEn: `Articles 41 and 53 of Moroccan Law 65.99 govern the statutory compensations for unfair dismissal: statutory severance payment, damages (1.5 months per year worked capped at 36 months), and notice period compensation.`,
+    url: "https://adala.justice.gov.ma"
   }
 ];
 
