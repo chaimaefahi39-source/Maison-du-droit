@@ -164,33 +164,33 @@ const LEGAL_RESOURCES = [
 
   // ─── GENERAL (عام) ──────────────────────────────────────────────
   {
-    title: "الدستور المغربي - الحقوق والحريات الأساسية ومبدأ المساواة والمحاكمة العادلة",
-    titleFr: "Constitution Marocaine - Droits fondamentaux, égalité et procès équitable",
-    titleEn: "Moroccan Constitution - Fundamental Rights, Equality & Fair Trial",
+    title: "الدستور المغربي - المساواة وحق التقاضي والمحاكمة العادلة (الفصول 19، 118، 120)",
+    titleFr: "Constitution Marocaine - Égalité, droit de recours et procès équitable (Articles 19, 118, 120)",
+    titleEn: "Moroccan Constitution - Equality, right of recourse and fair trial (Articles 19, 118, 120)",
     category: "general",
-    content: `يكفل الدستور المغربي لسنة 2011 المساواة بين المواطنين والمواطنات في جميع الحقوق المدنية والسياسية والاقتصادية (الفصل 19)، ويرسخ استقلالية السلطة القضائية، والحق في التقاضي، وشروط المحاكمة العادلة، وقرينة البراءة (الفصول 117 إلى 128).`,
-    contentFr: `La Constitution marocaine de 2011 garantit l'égalité homme-femme dans tous les droits (article 19) et consacre l'indépendance du pouvoir judiciaire, le droit de recours en justice, la présomption d'innocence et le procès équitable (articles 117 à 128).`,
-    contentEn: `The 2011 Moroccan Constitution guarantees equality of citizens in all rights (Article 19), establishing judicial independence, right to legal redress, presumption of innocence, and fair trial standards (Articles 117 to 128).`,
+    content: `ينص الفصل 19 على تمتع الرجل والمرأة على قدم المساواة بالحقوق والحريات المدنية والسياسية. ويضمن الفصل 118 حق التقاضي لكل شخص للدفاع عن حقوقه، بينما يقرر الفصل 120 حق كل شخص في محاكمة عادلة وفي حكم يصدر داخل أجل معقول وحقوق الدفاع مضمونة.`,
+    contentFr: `L'article 19 consacre l'égalité homme-femme dans les droits civils et politiques. L'article 118 garantit l'accès à la justice à toute personne pour la défense de ses droits, et l'article 120 dispose que toute personne a droit à un procès équitable rendu dans un délai raisonnable.`,
+    contentEn: `Article 19 enshrines gender equality in civil and political rights. Article 118 guarantees universal access to courts to defend legal rights, and Article 120 guarantees the right to a fair trial delivered within a reasonable timeframe.`,
     url: "https://adala.justice.gov.ma"
   },
   {
-    title: "قانون الالتزامات والعقود (D.O.C) - المبادئ العامة لصحة العقد وأركان الالتزام",
-    titleFr: "Dahir formant Code des Obligations et des Contrats (DOC) - Validité des contrats",
-    titleEn: "Code of Obligations and Contracts (DOC) - Contract Validity Principles",
+    title: "قانون الالتزامات والعقود (D.O.C) - أركان العقد وقوته الملزمة والتعويض (الفصول 2، 230، 264)",
+    titleFr: "Dahir des Obligations et des Contrats (DOC) - Éléments, force obligatoire et dommages (Articles 2, 230, 264)",
+    titleEn: "Code of Obligations and Contracts (DOC) - Elements, binding force, and damages (Articles 2, 230, 264)",
     category: "general",
-    content: `ينص قانون الالتزامات والعقود المغربي على أن التراضية، والأهلية للالتزام، والسبب المشروع، والشيء المحقق الذي يشكل موضوع الالتزام، هي الأركان الأساسية لصحة كافة العقود والاتفاقات القانونية في المملكة المغربية.`,
-    contentFr: `Le Code des Obligations et des Contrats (DOC) dispose que le consentement, la capacité d'obliger, un objet déterminé et une cause licite constituent les quatre éléments essentiels à la validité de tout contrat en droit marocain.`,
-    contentEn: `The Moroccan Code of Obligations and Contracts (DOC) provides that mutual consent, legal capacity, lawful cause, and definite object form the four essential elements for contract validity under Moroccan law.`,
+    content: `يحدد الفصل 2 أركان الالتزام (الأهلية، والرضا، ومحل محدد، وسبب مشروع). ويقر الفصل 230 مبدأ العقد شريعة المتعاقدين (الالتزامات التعاقدية المنشأة على وجه صحيح تقوم مقام القانون). ويحدد الفصل 264 قواعد تقدير التعويض والشرط الجزائي عن الضرر اللاحق بالدائن.`,
+    contentFr: `L'article 2 fixe les conditions essentielles de validité des obligations (capacité, consentement, objet et cause licite). L'article 230 consacre la force obligatoire : les obligations contractuelles valablement formées tiennent lieu de loi entre les parties. L'article 264 régit l'évaluation des dommages-intérêts et la clause pénale.`,
+    contentEn: `Article 2 outlines contract validity requirements (legal capacity, consent, lawful object and cause). Article 230 establishes that legally formed contractual obligations hold the force of law between the parties. Article 264 specifies the assessment of damages and penalty clauses.`,
     url: "https://adala.justice.gov.ma"
   },
   {
-    title: "قانون المسطرة المدنية - القواعد العامة لرفع الدعوى والمقال الافتتاحي واختصاص المحاكم",
-    titleFr: "Code de Procédure Civile - Conditions d'action en justice et compétence",
-    titleEn: "Code of Civil Procedure - Legal Action Conditions & Court Jurisdiction",
+    title: "قانون المسطرة المدنية - شروط رفع الدعوى والمقال الافتتاحي (الفصول 1، 31، 32)",
+    titleFr: "Code de Procédure Civile - Conditions d'action et requête introductive (Articles 1, 31, 32)",
+    titleEn: "Code of Civil Procedure - Standing requirements and introductory petitions (Articles 1, 31, 32)",
     category: "general",
-    content: `يحدد قانون المسطرة المدنية المغربي الشروط الواجب توفرها في لزوم رفع الدعوى أمام القضاء: الصفة، الأهلية، والمصلحة (المادة 1). كما ينظم شكليات المقال الافتتاحي المكتوب، وقواعد التبليغ والإحالة، وتوزيع الاختصاص المحلي والنوعي بين المحاكم.`,
-    contentFr: `Le Code de Procédure Civile fixe les conditions d'admissibilité de l'action en justice: la qualité, la capacité et l'intérêt à agir (article 1er). Il régit les formalités de la requête introductive, la notification et la compétence des tribunaux.`,
-    contentEn: `The Code of Civil Procedure sets forth the essential prerequisites for bringing a lawsuit: standing, legal capacity, and legitimate interest (Article 1). It governs introductory petitions, service of process, and venue rules.`,
+    content: `يوجب الفصل 1 توافر الصفة والأهلية والمصلحة لإثبات الحقوق أمام القضاء. وينص الفصل 31 على رفع الدعوى بمقال مكتوب أو تصريح شفوي يحرر به محضر. ويفصل الفصل 32 البيانات الإلزامية للمقال الافتتاحي (أسماء الأطراف، موطنهم، موضوع الدعوى، والوقائع والوسائل المثارة).`,
+    contentFr: `L'article 1er impose la justification de la qualité, de la capacité et de l'intérêt pour ester en justice. L'article 31 dispose que l'action est introduite par requête écrite ou déclaration verbale. L'article 32 détaille les mentions obligatoires du mémoire introductif d'instance (identité, domicile, exposé des faits et conclusions).`,
+    contentEn: `Article 1 requires legal standing, legal capacity, and legitimate interest to bring an action before the court. Article 31 provides that claims are filed by written petition or oral statement recorded by the court clerk. Article 32 mandates the essential requirements of the filing complaint.`,
     url: "https://adala.justice.gov.ma"
   },
 
