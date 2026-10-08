@@ -8,12 +8,6 @@ const sequelize = require('../config/database');
 async function searchSimilarDocuments(query, topK = 5, category = null) {
   try {
     let queryEmbedding = null;
-    try {
-      const { generateEmbedding } = require('./openai.service');
-      if (typeof generateEmbedding === 'function') {
-        queryEmbedding = await generateEmbedding(query);
-      }
-    } catch (e) {}
 
     if (!queryEmbedding || !Array.isArray(queryEmbedding)) {
       return fallbackTextSearch(query, topK, category);
