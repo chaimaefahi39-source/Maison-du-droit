@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '../../theme/colors';
-import { getResources, LegalResource } from '../../services/api';
+import { useResourcesQuery, LegalResource } from '../../services/resources';
 import { useLanguage } from '../../context/LanguageContext';
 
 export default function ResourcesScreen() {
@@ -24,10 +24,30 @@ export default function ResourcesScreen() {
   const { language, t, textAlign, flexDirection } = useLanguage();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>(params.category || '');
-  const [resources, setResources] = useState<LegalResource[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedResource, setSelectedResource] = useState<LegalResource | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const { data, isLoading, isRefetching, refetch } = useResourcesQuery({
+    q: debouncedQuery || undefined,
+    category: selectedCategory || undefined,
+    lang: language,
+  });
+
+  const resources = useMemo(() => {
+    const raw = data?.resources || [];
+    return raw.filter(
+      (item: LegalResource, index: number, self: LegalResource[]) =>
+        index === self.findIndex((r) => r.id === item.id || r.title.trim() === item.title.trim())
+    );
+  }, [data]);
 
   const CATEGORIES = [
     { label: t('filterAll'), value: '' },
@@ -58,35 +78,6 @@ export default function ResourcesScreen() {
       setSelectedCategory(params.category);
     }
   }, [params.category]);
-
-  const fetchResources = async () => {
-    setLoading(true);
-    try {
-      const res = await getResources({
-        q: searchQuery.trim() || undefined,
-        category: selectedCategory || undefined,
-        lang: language,
-      });
-      if (res.success && res.resources) {
-        const uniqueList = res.resources.filter(
-          (item: LegalResource, index: number, self: LegalResource[]) =>
-            index === self.findIndex((r) => r.id === item.id || r.title.trim() === item.title.trim())
-        );
-        setResources(uniqueList);
-      }
-    } catch {
-      // Keep existing list on error
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchResources();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, selectedCategory, language]);
 
   const handleAskAboutResource = (resource: LegalResource) => {
     setSelectedResource(null);
@@ -168,7 +159,7 @@ export default function ResourcesScreen() {
       </ScrollView>
 
       {/* List */}
-      {loading ? (
+      {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -179,6 +170,8 @@ export default function ResourcesScreen() {
           renderItem={renderResource}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshing={isRefetching}
+          onRefresh={refetch}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Feather name="book-open" size={48} color={colors.border} />

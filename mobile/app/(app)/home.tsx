@@ -5,7 +5,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors } from '../../theme/colors';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useRequestStore } from '../../store/useRequestStore';
+import { useRequestsQuery } from '../../services/requests';
 import { useLanguage } from '../../context/LanguageContext';
 
 const { width } = Dimensions.get('window');
@@ -14,12 +14,9 @@ const CARD_WIDTH = (width - 56) / 2;
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { requests, loadRequests } = useRequestStore();
+  const { data: requestsData } = useRequestsQuery();
+  const requests = requestsData?.requests || [];
   const { language, isRTL, t, textAlign, flexDirection } = useLanguage();
-
-  useEffect(() => {
-    loadRequests();
-  }, [loadRequests]);
 
   const pendingCount = requests.filter(r => r.status === 'pending').length;
   const resolvedCount = requests.filter(r => r.status === 'resolved').length;

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getResources, getCategories, type LegalResource } from '../services/api';
+import { getResources, getCategories, type LegalResource } from '../services/resources';
 
 type ResourceState = {
   resources: LegalResource[];

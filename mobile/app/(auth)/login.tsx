@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter, Link } from 'expo-router';
 import { colors } from '../../theme/colors';
-import { loginUser } from '../../services/api';
+import { useLoginMutation } from '../../services/auth';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export default function LoginScreen() {
@@ -13,9 +13,9 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const loginMutation = useLoginMutation();
 
   const handleLogin = async () => {
     setHasError(false);
@@ -27,16 +27,13 @@ export default function LoginScreen() {
       return;
     }
 
-    setIsLoading(true);
     try {
-      const data = await loginUser(email, password);
+      const data = await loginMutation.mutateAsync({ email: email.trim(), password });
       await setAuth(data.token, data.user);
       router.replace('/(app)/home' as any);
     } catch (error: any) {
       setHasError(true);
       setErrorMsg(error.message || 'Erreur de connexion au serveur');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -115,11 +112,11 @@ export default function LoginScreen() {
 
             {/* Login Button */}
             <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
+              style={[styles.button, loginMutation.isPending && styles.buttonDisabled]}
               onPress={handleLogin}
-              disabled={isLoading}
+              disabled={loginMutation.isPending}
             >
-              {isLoading ? (
+              {loginMutation.isPending ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
                 <Text style={styles.buttonText}>Se connecter →</Text>

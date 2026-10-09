@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors } from '../../theme/colors';
-import { useRequestStore } from '../../store/useRequestStore';
+import { useRequestsQuery, useCreateRequestMutation, useDeleteRequestMutation } from '../../services/requests';
 import { useLanguage } from '../../context/LanguageContext';
 
 import { notifyRequestStatus } from '../../services/notifications';
@@ -77,7 +77,12 @@ function formatAiResponseText(text: string) {
 
 export default function RequestsScreen() {
   const router = useRouter();
-  const { requests, isLoading, loadRequests, createRequest, deleteRequest } = useRequestStore();
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const { data, isLoading, isRefetching, refetch } = useRequestsQuery(filterStatus || undefined);
+  const createMutation = useCreateRequestMutation();
+  const deleteMutation = useDeleteRequestMutation();
+  const requests = data?.requests || [];
+
   const { language, t, textAlign, flexDirection } = useLanguage();
 
   const [showModal, setShowModal] = useState(false);
@@ -85,8 +90,6 @@ export default function RequestsScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('general');
-  const [creating, setCreating] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string | null>(null);
 
   const CATEGORIES = [
     { label: t('catGeneral'), value: 'general' },
@@ -108,10 +111,6 @@ export default function RequestsScreen() {
     }
   };
 
-  useEffect(() => {
-    loadRequests();
-  }, []);
-
   const filteredRequests = filterStatus
     ? requests.filter(r => r.status === filterStatus)
     : requests;
@@ -119,25 +118,27 @@ export default function RequestsScreen() {
   const handleCreate = async () => {
     if (!title.trim() || !description.trim()) return;
     const reqTitle = title.trim();
-    setCreating(true);
     try {
-      await createRequest({ title: reqTitle, description: description.trim(), category, language });
+      await createMutation.mutateAsync({
+        title: reqTitle,
+        description: description.trim(),
+        category,
+        language,
+      });
       setShowModal(false);
       setTitle('');
       setDescription('');
       setCategory('general');
       notifyRequestStatus(reqTitle, 'resolved');
-    } catch {
-      // Handle error
-    } finally {
-      setCreating(false);
+    } catch (err: any) {
+      Alert.alert(t('error'), err.message || t('error'));
     }
   };
 
   const handleDeleteRequest = (requestToDelete: any) => {
     const executeDelete = async () => {
       try {
-        await deleteRequest(requestToDelete.id);
+        await deleteMutation.mutateAsync(requestToDelete.id);
         if (selectedRequest?.id === requestToDelete.id) {
           setSelectedRequest(null);
         }
@@ -258,6 +259,8 @@ export default function RequestsScreen() {
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderRequest}
           contentContainerStyle={styles.list}
+          refreshing={isRefetching}
+          onRefresh={refetch}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Feather name="inbox" size={48} color={colors.border} />
@@ -317,11 +320,11 @@ export default function RequestsScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.submitButton, creating && { opacity: 0.7 }]}
+                style={[styles.submitButton, createMutation.isPending && { opacity: 0.7 }]}
                 onPress={handleCreate}
-                disabled={creating || !title.trim() || !description.trim()}
+                disabled={createMutation.isPending || !title.trim() || !description.trim()}
               >
-                {creating ? (
+                {createMutation.isPending ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={styles.submitText}>{t('submitRequest')}</Text>

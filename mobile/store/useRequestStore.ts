@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getUserRequests, createLegalRequest, deleteLegalRequest, type LegalRequest } from '../services/api';
+import { getUserRequests, createLegalRequest, deleteLegalRequest, type LegalRequest } from '../services/requests';
 
 type RequestState = {
   requests: LegalRequest[];

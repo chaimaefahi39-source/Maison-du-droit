@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getChatHistory, clearChatHistory, deleteChatMessage, streamChat, type ChatMsg } from '../services/api';
+import { getChatHistory, clearChatHistory, deleteChatMessage, streamChat, type ChatMsg } from '../services/chat';
 
 type ChatState = {
   messages: ChatMsg[];

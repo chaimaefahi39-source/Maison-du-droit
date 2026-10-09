@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter, Link } from 'expo-router';
 import { colors } from '../../theme/colors';
-import { registerUser } from '../../services/api';
+import { useRegisterMutation } from '../../services/auth';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -13,8 +13,8 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const registerMutation = useRegisterMutation();
 
   const handleRegister = async () => {
     setHasError(false);
@@ -32,15 +32,16 @@ export default function RegisterScreen() {
       return;
     }
 
-    setIsLoading(true);
     try {
-      await registerUser(name, email, password);
+      await registerMutation.mutateAsync({
+        fullName: name.trim(),
+        email: email.trim(),
+        password,
+      });
       router.replace('/(auth)/login' as any);
     } catch (error: any) {
       setHasError(true);
       setErrorMsg(error.message || "L'inscription a échoué");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -119,11 +120,11 @@ export default function RegisterScreen() {
 
             {/* Register Button */}
             <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
+              style={[styles.button, registerMutation.isPending && styles.buttonDisabled]}
               onPress={handleRegister}
-              disabled={isLoading}
+              disabled={registerMutation.isPending}
             >
-              {isLoading ? (
+              {registerMutation.isPending ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
                 <Text style={styles.buttonText}>S&apos;inscrire →</Text>

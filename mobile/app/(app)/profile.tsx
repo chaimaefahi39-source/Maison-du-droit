@@ -5,7 +5,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors } from '../../theme/colors';
 import { useAuthStore } from '../../store/useAuthStore';
-import { updateProfile } from '../../services/api';
+import { useUpdateProfileMutation } from '../../services/auth';
 import { useLanguage } from '../../context/LanguageContext';
 import { sendLocalNotification, requestNotificationPermissions } from '../../services/notifications';
 
@@ -13,28 +13,25 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, updateUser, clearAuth } = useAuthStore();
   const { language, setLanguage, t, textAlign, flexDirection } = useLanguage();
+  const updateProfileMutation = useUpdateProfileMutation();
 
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [saving, setSaving] = useState(false);
 
   const [activeModal, setActiveModal] = useState<'notifications' | 'privacy' | 'help' | null>(null);
   const [pushEnabled, setPushEnabled] = useState(true);
   const [requestAlertsEnabled, setRequestAlertsEnabled] = useState(true);
 
   const handleSave = async () => {
-    setSaving(true);
     try {
-      const data = await updateProfile({ fullName, bio, phone, email });
+      const data = await updateProfileMutation.mutateAsync({ fullName, bio, phone, email });
       await updateUser(data.user);
       setIsEditing(false);
     } catch (error: any) {
       Alert.alert(t('error'), error.message);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -76,7 +73,7 @@ export default function ProfileScreen() {
             style={[styles.editButton, { flexDirection }]}
             onPress={() => isEditing ? handleSave() : setIsEditing(true)}
           >
-            {saving ? (
+            {updateProfileMutation.isPending ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
               <>

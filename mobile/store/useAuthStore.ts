@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import type { UserPayload } from '../services/api';
+import type { UserPayload } from '../services/auth';
 
 // ─── Types ─────────────────────────────────────────────────────
 type AuthState = {
