@@ -1,6 +1,9 @@
 import { Stack } from "expo-router";
+import { LogBox } from "react-native";
 import { LanguageProvider } from "../context/LanguageContext";
 import { QueryProvider } from "../services/QueryProvider";
+
+LogBox.ignoreLogs(["Cannot connect to Expo CLI"]);
 
 export default function RootLayout() {
   return (

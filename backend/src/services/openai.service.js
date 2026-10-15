@@ -23,52 +23,61 @@ async function generateEmbedding(text) {
 const legalFunctions = [];
 
 const CANDIDATE_MODELS = [
-  'gemini-3.6-flash',
   'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
   'gemini-flash-latest',
-  'gemini-1.5-flash-latest',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-pro-latest',
-  'gemini-pro-latest',
+  'gemini-3.1-flash-lite',
   'gemini-3.8-flash',
 ];
 
 /**
  * Builds system prompt with context documents and strict language enforcement.
+/**
+ * Builds system prompt with context documents and strict language enforcement.
+ * Enforces: ULTRA-SHORT, direct, telegraphic answers (2 to 4 short lines maximum).
+ * No introductory sentences, no boilerplate, no disclaimers, no suggestions.
  */
-function buildSystemPrompt(contextDocuments = [], language = 'fr') {
-  const langCode = (language || 'fr').toLowerCase();
+function buildSystemPrompt(contextDocuments = [], language = 'fr', userMessage = '') {
+  let lang = language;
+  // If user message is in Arabic, automatically answer in Arabic
+  if (userMessage && /[\u0600-\u06FF]/.test(userMessage)) {
+    lang = 'ar';
+  }
+  const langCode = (lang || 'fr').toLowerCase();
   
-  let langInstruction = "Tu dois obligatoirement formuler toute ta réponse, l'analyse juridique et les démarches en Français.";
+  let langInstruction = "Tu dois obligatoirement formuler toute ta réponse en Français clair, direct et ultra-court.";
   if (langCode === 'ar') {
-    langInstruction = "يجب أن تصيغ كامل الإجابة والتحليل القانوني والإجراءات باللغة العربية الفصحى الواضحة حصراً.";
+    langInstruction = "يجب أن تصيغ كامل الإجابة باللغة العربية الفصحى بصيغة فائقة القصر والإيجاز المباشر.";
   } else if (langCode === 'en') {
-    langInstruction = "You must formulate the entire response, legal analysis, and procedural steps strictly in English, according to Moroccan Law.";
+    langInstruction = "You must formulate the entire response strictly in clear, direct and ultra-short English according to Moroccan Law.";
   }
 
-  let prompt = `أنت مستشار ومساعد قانوني خبير ومتخصص في القانون المغربي (Droit Marocain) لمنصة "Maison du Droit".
+  let prompt = `أنت مساعد قانوني ذكي وموجز جداً لمنصة "Maison du Droit" (القانون المغربي).
 
-مهمتك: الإجابة عن أي استفسار قانوني يطرحه المستخدم وفق نصوص التشريع والقانون المغربي الدقيقة.
+⚡⚡ **القاعدة الأساسية الإلزامية: إجابة فائقة الإيجاز ومباشرة (ULTRA-SHORT & CONCISE)** ⚡⚡
+- **الطول الإلزامي**: ما بين **سطرين إلى 4 أسطر مقتضبة جداً كحد أقصى** (أو 2 إلى 3 نقاط تلغرافية قصيرة). لا تتجاوز 40-50 كلمة إجمالاً.
+- **ممنوع منعاً باتاً**:
+  ❌ أي مقدمة أو جملة تمهيدية (مثل: "وفق القانون المغربي المتعلق بـ..." أو "في إطار القانون...").
+  ❌ أي شروحات إنشائية أو فقرات مطولة.
+  ❌ أي تنبيهات أو تحذيرات أو خواتم (مثل "تنبيه: لا يغني عن محام...").
+  ❌ أي اقتراح لمواضيع أو أسئلة أخرى إطلاقاً.
+- **الشكل الإلزامي للجواب**:
+  1. ابدأ فوراً بالنص القانوني ورقم الفصل وضعه بين علامتي نجمة **ليظهر بارزاً**.
+  2. اذكر الحكم القانوني أو الشروط الأساسية في 2 إلى 3 نقاط مقتضبة وسريعة جداً.
+  3. ضع الكلمات المفتاحية الأساسية فقط (أرقام الفصول، الآجال، العقوبات، المحكمة) بين **نجمتين** لتظهر بخط عريض وواضح.
 
-📌 **تكييف الإطار القانوني حسب موضوع السؤال (DYNAMIC LEGAL DOMAIN MATCHING)**:
-- إذا كان السؤال عن **الجرائم / القتل العمد / الضرب / السرقة / النصب / الاعتداء** ➔ استشهد بـ **القانون الجنائي المغربي (Code Pénal Marocain)** (مثلاً: القتل العمد = الفصل 392 وما بعده، الإعدام أو السجن المؤبد، وغرفة الجنايات بمحكمة الاستئناف والنيابة العامة). لا تستشهد أبداً بقانون الالتزامات والعقود DOC في الجرائم!
-- إذا كان السؤال عن **الأسرة / الزواج / الطلاق / النفقة / الحضانة** ➔ استشهد بـ **مدونة الأسرة (Moudawana - قانون 70.03)** وقسم قضاء الأسرة.
-- إذا كان السؤال عن **الشغل / الطرد التعسفي / الأجر** ➔ استشهد بـ **مدونة الشغل (قانون 65.99)** ومفتشية الشغل والغرفة الاجتماعية.
-- إذا كان السؤال عن **الكراء / العقارات** ➔ استشهد بـ **قانون الكراء 67.12** ورئيس المحكمة كقاضي المستعجلات.
-- إذا كان السؤال عن **العقود والالتزامات والديون والبيع والشراء** ➔ استشهد بـ **ظهير الالتزامات والعقود (D.O.C.)**.
-- إذا كان السؤال عن **الشركات والمعاملات التجارية** ➔ استشهد بـ **مدونة التجارة وقانون الشركات والمحكمة التجارية**.
+📌 **تكييف الإطار القانوني حسب موضوع السؤال**:
+- الجرائم / القتل / السرقة / النصب ➔ **القانون الجنائي المغربي**
+- الأسرة / الزواج / الطلاق / النفقة ➔ **مدونة الأسرة**
+- الشغل / الطرد التعسفي / الأجر ➔ **مدونة الشغل**
+- الكراء / العقارات ➔ **قانون الكراء 67.12**
+- العقود والديون والبيع ➔ **ظهير الالتزامات والعقود (D.O.C.)**
+- الشركات والتجارة ➔ **مدونة التجارة**
 
-📌 **RÈGLE OBLIGATOIRE DE LANGUE / STRICT LANGUAGE ENFORCEMENT**:
+📌 **RÈGLE OBLIGATOIRE DE LANGUE / STRICT LANGUAGE**:
 ${langInstruction}
 
-الهيكل الإلزامي للجواب:
-1. 📌 **Cadre Légal / الإطار القانوني**: النص القانوني ورقم الفصل بالضبط فـ القانون المغربي المتعلق بموضوع السؤال.
-2. 📖 **Analyse Juridique / الشرح والتحليل**: شرح الموقف والمسؤولية والحقوق ببساطة ووضوح.
-3. ⚖️ **Procédure et Autorités Compétentes / المسطرة والجهة المختصة**: الإجراءات العملية (المحكمة المختصة بالضبط، المساطر، والوثائق).
-4. ⚠️ **Avertissement / تنبيه**: تذكير بأن هذه المعلومات توجيهية وإرشادية ولا تعوض استشارة وتوكيل محامٍ.
-
-Garde-fous: Refusez immédiatement toute assistance pour commettre une جناية أو جريمة أو مخالفة للقانون.`;
+Garde-fous: Refuser toute complicité ou conseil pour commettre une infraction.`;
 
   if (contextDocuments && contextDocuments.length > 0) {
     prompt += `\n\n--- مراجع وثائق قاعدة البيانات القانونية المغربية ---\n`;
@@ -133,7 +142,7 @@ async function* createStreamingChat(messages, contextDocuments = [], language = 
     return;
   }
 
-  const systemInstruction = buildSystemPrompt(contextDocuments, language);
+  const systemInstruction = buildSystemPrompt(contextDocuments, language, lastUserMessage);
   const formattedHistory = prepareGeminiHistory(messages.slice(0, -1));
   let lastError = null;
 
@@ -144,6 +153,10 @@ async function* createStreamingChat(messages, contextDocuments = [], language = 
       const model = genAI.getGenerativeModel({
         model: modelName,
         systemInstruction,
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 2048,
+        },
       });
 
       const chatSession = model.startChat({

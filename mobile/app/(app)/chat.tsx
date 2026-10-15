@@ -79,8 +79,45 @@ export default function ChatScreen() {
     }
   };
 
+  const renderMessageContent = (content: string, isUser: boolean, isStreamingThis: boolean) => {
+    if (!content) {
+      return isStreamingThis ? <Text style={styles.cursor}>▊</Text> : null;
+    }
+
+    const parts = content.split(/(\*\*.*?\*\*)/g);
+
+    return (
+      <Text style={[
+        styles.messageText,
+        isUser ? styles.userText : styles.assistantText,
+        { textAlign },
+      ]}>
+        {parts.map((part, idx) => {
+          if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+            const boldText = part.slice(2, -2);
+            return (
+              <Text
+                key={idx}
+                style={[
+                  styles.highlightText,
+                  isUser ? styles.userHighlight : styles.assistantHighlight,
+                ]}
+              >
+                {boldText}
+              </Text>
+            );
+          }
+          return part;
+        })}
+        {isStreamingThis && <Text style={styles.cursor}>▊</Text>}
+      </Text>
+    );
+  };
+
   const renderMessage = ({ item, index }: { item: any; index: number }) => {
     const isUser = item.role === 'user';
+    const isStreamingThis = isStreaming && index === messages.length - 1 && !isUser;
+
     return (
       <View style={[styles.messageRow, isUser ? styles.messageRowUser : styles.messageRowAssistant]}>
         {!isUser && (
@@ -96,16 +133,7 @@ export default function ChatScreen() {
             isUser ? styles.userBubble : styles.assistantBubble,
           ]}
         >
-          <Text style={[
-            styles.messageText,
-            isUser ? styles.userText : styles.assistantText,
-            { textAlign },
-          ]}>
-            {item.content}
-            {isStreaming && index === messages.length - 1 && !isUser && (
-              <Text style={styles.cursor}>▊</Text>
-            )}
-          </Text>
+          {renderMessageContent(item.content, isUser, isStreamingThis)}
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.messageDeleteBtn}
@@ -258,6 +286,9 @@ const styles = StyleSheet.create({
   messageText: { fontSize: 14, lineHeight: 21 },
   userText: { color: colors.userBubbleText },
   assistantText: { color: colors.assistantBubbleText },
+  highlightText: { fontWeight: '700' },
+  userHighlight: { color: '#FFFFFF', fontWeight: '700' },
+  assistantHighlight: { color: '#60A5FA', fontWeight: '700' },
   messageDeleteBtn: { padding: 4, opacity: 0.5, alignSelf: 'center' },
   cursor: { color: colors.primary, fontSize: 14 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
